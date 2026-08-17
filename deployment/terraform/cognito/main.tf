@@ -60,7 +60,7 @@ resource "aws_cognito_user_pool" "this" {
   name                     = "${local.name_prefix}-user-pool"
   user_pool_tier           = var.user_pool_tier
   username_attributes      = ["email"]
-  auto_verified_attributes = ["email", "phone_number"]
+  auto_verified_attributes = ["email"]
   mfa_configuration        = "ON"
 
   password_policy {
