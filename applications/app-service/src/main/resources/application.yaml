@@ -28,5 +28,9 @@ adapters:
     schema: ${DB_SCHEMA:public}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
+  cognito:
+    region: ${COGNITO_REGION:us-east-1}
+    user-pool-id: ${COGNITO_USER_POOL_ID:compira-dev-user-pool-id}
+    client-id: ${COGNITO_CLIENT_ID:compira-dev-client-id}
 cors:
   allowed-origins: "http://localhost:5173,http://localhost:8080"

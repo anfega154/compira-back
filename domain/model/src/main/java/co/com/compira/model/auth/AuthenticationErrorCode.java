@@ -1,0 +1,20 @@
+package co.com.compira.model.auth;
+
+public final class AuthenticationErrorCode {
+    public static final String USER_ALREADY_EXISTS = "AUTH_001";
+    public static final String INVALID_PASSWORD = "AUTH_002";
+    public static final String INVALID_CONFIRMATION_CODE = "AUTH_003";
+    public static final String EXPIRED_CONFIRMATION_CODE = "AUTH_004";
+    public static final String INVALID_CREDENTIALS = "AUTH_005";
+    public static final String USER_NOT_CONFIRMED = "AUTH_006";
+    public static final String USER_NOT_FOUND = "AUTH_007";
+    public static final String PASSWORD_RESET_REQUIRED = "AUTH_008";
+    public static final String UNSUPPORTED_CHALLENGE = "AUTH_009";
+    public static final String LOCAL_USER_NOT_FOUND = "AUTH_010";
+    public static final String GENERIC_AUTHENTICATION_ERROR = "AUTH_011";
+    public static final String INVALID_CHALLENGE_REQUEST = "AUTH_012";
+    public static final String TOO_MANY_REQUESTS = "AUTH_013";
+
+    private AuthenticationErrorCode() {
+    }
+}

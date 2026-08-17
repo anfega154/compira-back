@@ -1,5 +1,6 @@
 package co.com.compira.api;
 
+import co.com.compira.api.auth.AuthenticationHandler;
 import co.com.compira.model.company.Company;
 import co.com.compira.usecase.createcompany.CreateCompanyUseCase;
 import co.com.compira.usecase.getcompanybyid.GetCompanyByIdUseCase;
@@ -22,13 +23,14 @@ class RouterRestTest {
     private final CreateCompanyUseCase createCompanyUseCase = mock(CreateCompanyUseCase.class);
     private final GetCompanyByIdUseCase getCompanyByIdUseCase = mock(GetCompanyByIdUseCase.class);
     private final ListCompaniesUseCase listCompaniesUseCase = mock(ListCompaniesUseCase.class);
+    private final AuthenticationHandler authenticationHandler = mock(AuthenticationHandler.class);
     private WebTestClient webTestClient;
 
     @BeforeEach
     void setUp() {
         HandlerV1 handlerV1 = new HandlerV1(createCompanyUseCase, getCompanyByIdUseCase, listCompaniesUseCase);
         HandlerV2 handlerV2 = new HandlerV2(createCompanyUseCase, getCompanyByIdUseCase, listCompaniesUseCase);
-        webTestClient = WebTestClient.bindToRouterFunction(new RouterRest().routerFunction(handlerV1, handlerV2)).build();
+        webTestClient = WebTestClient.bindToRouterFunction(new RouterRest().routerFunction(handlerV1, handlerV2, authenticationHandler)).build();
     }
 
     @Test
