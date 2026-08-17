@@ -1,12 +1,13 @@
 package co.com.compira.api.auth.dto;
 
+import co.com.compira.api.auth.AuthenticationValidationMessage;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 
 public record LoginRequest(
-        @NotBlank(message = "Email is required")
-        @Email(message = "Email must be valid")
+        @NotBlank(message = AuthenticationValidationMessage.EMAIL_REQUIRED)
+        @Email(message = AuthenticationValidationMessage.EMAIL_INVALID)
         String email,
-        @NotBlank(message = "Password is required")
+        @NotBlank(message = AuthenticationValidationMessage.PASSWORD_REQUIRED)
         String password) {
 }

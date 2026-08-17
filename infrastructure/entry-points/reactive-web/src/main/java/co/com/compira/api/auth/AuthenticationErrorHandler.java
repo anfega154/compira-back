@@ -1,6 +1,8 @@
 package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.AuthenticationErrorResponse;
+import co.com.compira.model.auth.AuthenticationErrorCode;
+import co.com.compira.model.auth.AuthenticationMessage;
 import co.com.compira.model.common.error.CompiraException;
 import co.com.compira.model.common.error.ErrorCategory;
 import org.springframework.http.HttpStatus;
@@ -17,10 +19,19 @@ public class AuthenticationErrorHandler {
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(new AuthenticationErrorResponse(exception.getCode(), exception.getMessage()));
         }
+        if (throwable instanceof IllegalArgumentException exception) {
+            return ServerResponse.status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(new AuthenticationErrorResponse(
+                            AuthenticationErrorCode.INVALID_REQUEST,
+                            exception.getMessage()));
+        }
 
         return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(new AuthenticationErrorResponse("AUTH_500", "An unexpected error occurred"));
+                .bodyValue(new AuthenticationErrorResponse(
+                        AuthenticationErrorCode.UNEXPECTED_ERROR,
+                        AuthenticationMessage.UNEXPECTED_ERROR));
     }
 
     private HttpStatus resolveStatus(ErrorCategory errorCategory) {

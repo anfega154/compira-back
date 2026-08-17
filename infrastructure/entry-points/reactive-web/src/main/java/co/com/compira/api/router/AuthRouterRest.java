@@ -1,4 +1,4 @@
-package co.com.compira.api;
+package co.com.compira.api.router;
 
 import co.com.compira.api.auth.AuthenticationHandler;
 import co.com.compira.api.auth.AuthenticationRoute;
@@ -20,7 +20,7 @@ import org.springframework.web.reactive.function.server.RouterFunctions;
 import org.springframework.web.reactive.function.server.ServerResponse;
 
 @Configuration
-public class RouterRest {
+public class AuthRouterRest {
     @RouterOperations({
             @RouterOperation(
                     path = "/api/v1/auth/register",
@@ -28,10 +28,10 @@ public class RouterRest {
                     beanMethod = "registerUser",
                     method = RequestMethod.POST,
                     operation = @Operation(
-                            summary = "Register a user",
+                            summary = "Registrar un usuario",
                             responses = {
-                                    @ApiResponse(responseCode = "201", description = "User registered", content = @Content(schema = @Schema(implementation = UserRegistrationResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Validation error")
+                                    @ApiResponse(responseCode = "201", description = "Usuario registrado", content = @Content(schema = @Schema(implementation = UserRegistrationResponse.class))),
+                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida")
                             }
                     )
             ),
@@ -41,10 +41,10 @@ public class RouterRest {
                     beanMethod = "confirmUserRegistration",
                     method = RequestMethod.POST,
                     operation = @Operation(
-                            summary = "Confirm user registration",
+                            summary = "Confirmar registro de usuario",
                             responses = {
-                                    @ApiResponse(responseCode = "200", description = "User confirmed", content = @Content(schema = @Schema(implementation = ApplicationUserResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Invalid code")
+                                    @ApiResponse(responseCode = "200", description = "Usuario confirmado", content = @Content(schema = @Schema(implementation = ApplicationUserResponse.class))),
+                                    @ApiResponse(responseCode = "400", description = "Código inválido")
                             }
                     )
             ),
@@ -54,10 +54,10 @@ public class RouterRest {
                     beanMethod = "login",
                     method = RequestMethod.POST,
                     operation = @Operation(
-                            summary = "Authenticate a user",
+                            summary = "Autenticar un usuario",
                             responses = {
-                                    @ApiResponse(responseCode = "200", description = "Authentication result", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
-                                    @ApiResponse(responseCode = "401", description = "Authentication failed")
+                                    @ApiResponse(responseCode = "200", description = "Resultado de autenticación", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
+                                    @ApiResponse(responseCode = "401", description = "Autenticación fallida")
                             }
                     )
             ),
@@ -67,10 +67,10 @@ public class RouterRest {
                     beanMethod = "respondAuthenticationChallenge",
                     method = RequestMethod.POST,
                     operation = @Operation(
-                            summary = "Respond to an authentication challenge",
+                            summary = "Responder un reto de autenticación",
                             responses = {
-                                    @ApiResponse(responseCode = "200", description = "Authentication result", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Invalid challenge")
+                                    @ApiResponse(responseCode = "200", description = "Resultado de autenticación", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
+                                    @ApiResponse(responseCode = "400", description = "Solicitud del reto inválida")
                             }
                     )
             ),
@@ -80,9 +80,9 @@ public class RouterRest {
                     beanMethod = "startPasswordRecovery",
                     method = RequestMethod.POST,
                     operation = @Operation(
-                            summary = "Start password recovery",
+                            summary = "Iniciar recuperación de contraseña",
                             responses = {
-                                    @ApiResponse(responseCode = "200", description = "Recovery code sent", content = @Content(schema = @Schema(implementation = PasswordRecoveryResponse.class)))
+                                    @ApiResponse(responseCode = "200", description = "Código de recuperación enviado", content = @Content(schema = @Schema(implementation = PasswordRecoveryResponse.class)))
                             }
                     )
             ),
@@ -92,9 +92,9 @@ public class RouterRest {
                     beanMethod = "confirmPasswordRecovery",
                     method = RequestMethod.POST,
                     operation = @Operation(
-                            summary = "Confirm password recovery",
+                            summary = "Confirmar recuperación de contraseña",
                             responses = {
-                                    @ApiResponse(responseCode = "204", description = "Password updated")
+                                    @ApiResponse(responseCode = "204", description = "Contraseña actualizada")
                             }
                     )
             ),
@@ -139,6 +139,14 @@ public class RouterRest {
     public RouterFunction<ServerResponse> routerFunction(AuthenticationHandler authenticationHandler) {
         return RouterFunctions.route()
                 .path(AuthenticationRoute.API_V1, builder -> builder
+                        .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
+                                .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
+                                .POST(AuthenticationRoute.REGISTER_CONFIRMATION, authenticationHandler::confirmUserRegistration)
+                                .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)
+                                .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
+                                .POST(AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
+                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)))
+                .path(AuthenticationRoute.API_V2, builder -> builder
                         .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
                                 .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
                                 .POST(AuthenticationRoute.REGISTER_CONFIRMATION, authenticationHandler::confirmUserRegistration)

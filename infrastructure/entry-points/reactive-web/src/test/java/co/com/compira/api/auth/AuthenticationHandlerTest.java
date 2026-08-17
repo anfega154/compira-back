@@ -1,5 +1,7 @@
 package co.com.compira.api.auth;
 
+import co.com.compira.api.auth.dto.RegisterUserRequest;
+import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.mapper.AuthenticationRequestMapper;
 import co.com.compira.api.auth.mapper.AuthenticationResponseMapper;
 import co.com.compira.usecase.confirmpasswordrecovery.ConfirmPasswordRecoveryUseCase;
@@ -120,5 +122,38 @@ class AuthenticationHandlerTest {
                 .bodyValue(AuthenticationApiTestData.confirmPasswordRecoveryRequest())
                 .exchange()
                 .expectStatus().isNoContent();
+    }
+
+    @Test
+    void shouldReturnSpanishValidationErrorForInvalidRegisterRequest() {
+        webTestClient.post()
+                .uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.REGISTER)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(new RegisterUserRequest("", "123", "", "", "123", "PUSH"))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("AUTH_014")
+                .jsonPath("$.message").value(message -> org.assertj.core.api.Assertions.assertThat(message.toString())
+                        .contains("El correo electrónico es obligatorio")
+                        .contains("El canal MFA preferido debe ser EMAIL o SMS"));
+    }
+
+    @Test
+    void shouldReturnSpanishChallengeErrorWhenMfaChannelIsMissing() {
+        webTestClient.post()
+                .uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN_CHALLENGE)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(new RespondAuthenticationChallengeRequest(
+                        "john.doe@compira.co",
+                        "challenge-session",
+                        "SELECT_MFA_TYPE",
+                        null,
+                        null))
+                .exchange()
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("AUTH_012")
+                .jsonPath("$.message").isEqualTo("Debes indicar el canal MFA cuando el reto es SELECT_MFA_TYPE");
     }
 }

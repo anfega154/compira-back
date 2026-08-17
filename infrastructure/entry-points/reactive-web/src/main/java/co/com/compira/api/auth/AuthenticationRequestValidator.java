@@ -48,21 +48,18 @@ public class AuthenticationRequestValidator {
                     AuthenticationChallengeName challengeName = AuthenticationChallengeName.fromValue(validRequest.challengeName());
                     return switch (challengeName) {
                         case SELECT_MFA_TYPE -> validRequest.mfaChannel() == null
-                                ? Mono.error(new CompiraException(
+                                ? Mono.error(buildBadRequestException(
                                 AuthenticationErrorCode.INVALID_CHALLENGE_REQUEST,
-                                AuthenticationMessage.INVALID_CHALLENGE_REQUEST,
-                                ErrorCategory.BAD_REQUEST))
+                                AuthenticationMessage.MFA_CHANNEL_REQUIRED))
                                 : Mono.just(validRequest);
                         case EMAIL_OTP, SMS_MFA, SOFTWARE_TOKEN_MFA -> validRequest.code() == null || validRequest.code().isBlank()
-                                ? Mono.error(new CompiraException(
+                                ? Mono.error(buildBadRequestException(
                                 AuthenticationErrorCode.INVALID_CHALLENGE_REQUEST,
-                                AuthenticationMessage.INVALID_CHALLENGE_REQUEST,
-                                ErrorCategory.BAD_REQUEST))
+                                AuthenticationMessage.CHALLENGE_CODE_REQUIRED))
                                 : Mono.just(validRequest);
-                        case NEW_PASSWORD_REQUIRED -> Mono.error(new CompiraException(
+                        case NEW_PASSWORD_REQUIRED -> Mono.error(buildBadRequestException(
                                 AuthenticationErrorCode.UNSUPPORTED_CHALLENGE,
-                                AuthenticationMessage.INVALID_CHALLENGE_REQUEST,
-                                ErrorCategory.BAD_REQUEST));
+                                AuthenticationMessage.UNSUPPORTED_CHALLENGE));
                     };
                 });
     }
@@ -81,12 +78,15 @@ public class AuthenticationRequestValidator {
             return Mono.just(request);
         }
 
-        return Mono.error(new CompiraException(
-                AuthenticationErrorCode.INVALID_CHALLENGE_REQUEST,
+        return Mono.error(buildBadRequestException(
+                AuthenticationErrorCode.INVALID_REQUEST,
                 violations.stream()
                         .map(ConstraintViolation::getMessage)
                         .sorted()
-                        .collect(Collectors.joining(VALIDATION_MESSAGE_SEPARATOR)),
-                ErrorCategory.BAD_REQUEST));
+                        .collect(Collectors.joining(VALIDATION_MESSAGE_SEPARATOR))));
+    }
+
+    private CompiraException buildBadRequestException(String code, String message) {
+        return new CompiraException(code, message, ErrorCategory.BAD_REQUEST);
     }
 }

@@ -47,6 +47,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.UserNotFoun
 import software.amazon.awssdk.services.cognitoidentityprovider.model.UsernameExistsException;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 
@@ -199,7 +200,7 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                     CognitoAuthenticationConstants.SOFTWARE_TOKEN_MFA_CODE_PARAMETER, command.code());
             case NEW_PASSWORD_REQUIRED -> throw new CompiraException(
                     AuthenticationErrorCode.UNSUPPORTED_CHALLENGE,
-                    AuthenticationMessage.INVALID_CHALLENGE_REQUEST,
+                    AuthenticationMessage.UNSUPPORTED_CHALLENGE,
                     ErrorCategory.BAD_REQUEST);
         };
     }
@@ -249,8 +250,33 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
             return new CompiraException(AuthenticationErrorCode.TOO_MANY_REQUESTS, AuthenticationMessage.TOO_MANY_REQUESTS, ErrorCategory.TOO_MANY_REQUESTS);
         }
         if (cause instanceof InvalidParameterException) {
-            return new CompiraException(AuthenticationErrorCode.INVALID_CHALLENGE_REQUEST, AuthenticationMessage.INVALID_CHALLENGE_REQUEST, ErrorCategory.BAD_REQUEST);
+            return mapInvalidParameterException((InvalidParameterException) cause);
         }
         return new CompiraException(AuthenticationErrorCode.GENERIC_AUTHENTICATION_ERROR, AuthenticationMessage.GENERIC_AUTHENTICATION_ERROR, ErrorCategory.INTERNAL_SERVER_ERROR);
+    }
+
+    private CompiraException mapInvalidParameterException(InvalidParameterException exception) {
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            return new CompiraException(
+                    AuthenticationErrorCode.INVALID_REQUEST,
+                    AuthenticationMessage.INVALID_REQUEST,
+                    ErrorCategory.BAD_REQUEST);
+        }
+
+        String normalizedMessage = message.toLowerCase(Locale.ROOT);
+        if (normalizedMessage.contains("emailsendingaccount")
+                || normalizedMessage.contains("emailmfaconfiguration")
+                || normalizedMessage.contains("ses")) {
+            return new CompiraException(
+                    AuthenticationErrorCode.IDENTITY_PROVIDER_CONFIGURATION_ERROR,
+                    AuthenticationMessage.IDENTITY_PROVIDER_CONFIGURATION_ERROR,
+                    ErrorCategory.INTERNAL_SERVER_ERROR);
+        }
+
+        return new CompiraException(
+                AuthenticationErrorCode.INVALID_REQUEST,
+                AuthenticationMessage.INVALID_REQUEST,
+                ErrorCategory.BAD_REQUEST);
     }
 }

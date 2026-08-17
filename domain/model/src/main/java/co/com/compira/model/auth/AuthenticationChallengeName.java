@@ -1,5 +1,8 @@
 package co.com.compira.model.auth;
 
+import co.com.compira.model.common.error.CompiraException;
+import co.com.compira.model.common.error.ErrorCategory;
+
 import java.util.Arrays;
 
 public enum AuthenticationChallengeName {
@@ -13,6 +16,9 @@ public enum AuthenticationChallengeName {
         return Arrays.stream(values())
                 .filter(challenge -> challenge.name().equalsIgnoreCase(value))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(value + " is not a supported challenge"));
+                .orElseThrow(() -> new CompiraException(
+                        AuthenticationErrorCode.INVALID_REQUEST,
+                        AuthenticationMessage.INVALID_REQUEST,
+                        ErrorCategory.BAD_REQUEST));
     }
 }

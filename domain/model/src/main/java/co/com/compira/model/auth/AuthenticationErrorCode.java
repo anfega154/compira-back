@@ -1,6 +1,7 @@
 package co.com.compira.model.auth;
 
 public final class AuthenticationErrorCode {
+    public static final String UNEXPECTED_ERROR = "AUTH_000";
     public static final String USER_ALREADY_EXISTS = "AUTH_001";
     public static final String INVALID_PASSWORD = "AUTH_002";
     public static final String INVALID_CONFIRMATION_CODE = "AUTH_003";
@@ -14,6 +15,8 @@ public final class AuthenticationErrorCode {
     public static final String GENERIC_AUTHENTICATION_ERROR = "AUTH_011";
     public static final String INVALID_CHALLENGE_REQUEST = "AUTH_012";
     public static final String TOO_MANY_REQUESTS = "AUTH_013";
+    public static final String INVALID_REQUEST = "AUTH_014";
+    public static final String IDENTITY_PROVIDER_CONFIGURATION_ERROR = "AUTH_015";
 
     private AuthenticationErrorCode() {
     }

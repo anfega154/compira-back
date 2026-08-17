@@ -1,5 +1,8 @@
 package co.com.compira.model.auth;
 
+import co.com.compira.model.common.error.CompiraException;
+import co.com.compira.model.common.error.ErrorCategory;
+
 import java.util.Arrays;
 
 public enum MfaChannel {
@@ -20,6 +23,9 @@ public enum MfaChannel {
         return Arrays.stream(values())
                 .filter(channel -> channel.name().equalsIgnoreCase(value))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException(value + " is not a supported MFA channel"));
+                .orElseThrow(() -> new CompiraException(
+                        AuthenticationErrorCode.INVALID_REQUEST,
+                        AuthenticationMessage.INVALID_REQUEST,
+                        ErrorCategory.BAD_REQUEST));
     }
 }

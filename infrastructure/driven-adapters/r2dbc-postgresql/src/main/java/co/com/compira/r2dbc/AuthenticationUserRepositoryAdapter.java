@@ -106,7 +106,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
                 .one()
                 .switchIfEmpty(Mono.error(new CompiraException(
                         AuthenticationErrorCode.GENERIC_AUTHENTICATION_ERROR,
-                        AuthenticationMessage.GENERIC_AUTHENTICATION_ERROR,
+                        AuthenticationMessage.LOCAL_USER_PERSISTENCE_ERROR,
                         ErrorCategory.INTERNAL_SERVER_ERROR)))
                 .flatMap(row -> assignDefaultRole((UUID) row.get("id"))
                         .then(buildApplicationUser(row)))
