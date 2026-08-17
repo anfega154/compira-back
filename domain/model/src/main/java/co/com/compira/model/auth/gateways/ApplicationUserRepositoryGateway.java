@@ -12,4 +12,6 @@ public interface ApplicationUserRepositoryGateway {
     Mono<ApplicationUser> activateUser(String email);
 
     Mono<ApplicationUser> updateLastLogin(String email);
+
+    Mono<Void> deleteByEmail(String email);
 }

@@ -62,6 +62,18 @@ public class AuthRouterRest {
                     )
             ),
             @RouterOperation(
+                    path = "/api/v1/auth/logout",
+                    beanClass = AuthenticationHandler.class,
+                    beanMethod = "logout",
+                    method = RequestMethod.POST,
+                    operation = @Operation(
+                            summary = "Cerrar sesión",
+                            responses = {
+                                    @ApiResponse(responseCode = "204", description = "Sesión cerrada")
+                            }
+                    )
+            ),
+            @RouterOperation(
                     path = "/api/v1/auth/login/challenge",
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "respondAuthenticationChallenge",
@@ -99,6 +111,19 @@ public class AuthRouterRest {
                     )
             ),
             @RouterOperation(
+                    path = "/api/v1/auth/users",
+                    beanClass = AuthenticationHandler.class,
+                    beanMethod = "deleteUser",
+                    method = RequestMethod.DELETE,
+                    operation = @Operation(
+                            summary = "Eliminar un usuario",
+                            responses = {
+                                    @ApiResponse(responseCode = "204", description = "Usuario eliminado"),
+                                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
+                            }
+                    )
+            ),
+            @RouterOperation(
                     path = "/api/v2/auth/register",
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "registerUser",
@@ -114,6 +139,12 @@ public class AuthRouterRest {
                     path = "/api/v2/auth/login",
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "login",
+                    method = RequestMethod.POST
+            ),
+            @RouterOperation(
+                    path = "/api/v2/auth/logout",
+                    beanClass = AuthenticationHandler.class,
+                    beanMethod = "logout",
                     method = RequestMethod.POST
             ),
             @RouterOperation(
@@ -133,6 +164,12 @@ public class AuthRouterRest {
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "confirmPasswordRecovery",
                     method = RequestMethod.POST
+            ),
+            @RouterOperation(
+                    path = "/api/v2/auth/users",
+                    beanClass = AuthenticationHandler.class,
+                    beanMethod = "deleteUser",
+                    method = RequestMethod.DELETE
             )
     })
     @Bean
@@ -143,17 +180,21 @@ public class AuthRouterRest {
                                 .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
                                 .POST(AuthenticationRoute.REGISTER_CONFIRMATION, authenticationHandler::confirmUserRegistration)
                                 .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)
+                                .POST(AuthenticationRoute.LOGOUT, authenticationHandler::logout)
                                 .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
                                 .POST(AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
-                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)))
+                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
+                                .DELETE(AuthenticationRoute.USERS, authenticationHandler::deleteUser)))
                 .path(AuthenticationRoute.API_V2, builder -> builder
                         .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
                                 .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
                                 .POST(AuthenticationRoute.REGISTER_CONFIRMATION, authenticationHandler::confirmUserRegistration)
                                 .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)
+                                .POST(AuthenticationRoute.LOGOUT, authenticationHandler::logout)
                                 .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
                                 .POST(AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
-                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)))
+                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
+                                .DELETE(AuthenticationRoute.USERS, authenticationHandler::deleteUser)))
                 .build();
     }
 }

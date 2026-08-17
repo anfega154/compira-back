@@ -6,13 +6,16 @@ import co.com.compira.api.auth.mapper.AuthenticationRequestMapper;
 import co.com.compira.api.auth.mapper.AuthenticationResponseMapper;
 import co.com.compira.usecase.confirmpasswordrecovery.ConfirmPasswordRecoveryUseCase;
 import co.com.compira.usecase.confirmuserregistration.ConfirmUserRegistrationUseCase;
+import co.com.compira.usecase.deleteuser.DeleteUserUseCase;
 import co.com.compira.usecase.login.LoginUseCase;
+import co.com.compira.usecase.logout.LogoutUseCase;
 import co.com.compira.usecase.registeruser.RegisterUserUseCase;
 import co.com.compira.usecase.respondauthenticationchallenge.RespondAuthenticationChallengeUseCase;
 import co.com.compira.usecase.startpasswordrecovery.StartPasswordRecoveryUseCase;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.server.RouterFunctions;
@@ -26,9 +29,11 @@ class AuthenticationHandlerTest {
     private final RegisterUserUseCase registerUserUseCase = mock(RegisterUserUseCase.class);
     private final ConfirmUserRegistrationUseCase confirmUserRegistrationUseCase = mock(ConfirmUserRegistrationUseCase.class);
     private final LoginUseCase loginUseCase = mock(LoginUseCase.class);
+    private final LogoutUseCase logoutUseCase = mock(LogoutUseCase.class);
     private final RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase = mock(RespondAuthenticationChallengeUseCase.class);
     private final StartPasswordRecoveryUseCase startPasswordRecoveryUseCase = mock(StartPasswordRecoveryUseCase.class);
     private final ConfirmPasswordRecoveryUseCase confirmPasswordRecoveryUseCase = mock(ConfirmPasswordRecoveryUseCase.class);
+    private final DeleteUserUseCase deleteUserUseCase = mock(DeleteUserUseCase.class);
     private WebTestClient webTestClient;
 
     @BeforeEach
@@ -37,9 +42,11 @@ class AuthenticationHandlerTest {
                 registerUserUseCase,
                 confirmUserRegistrationUseCase,
                 loginUseCase,
+                logoutUseCase,
                 respondAuthenticationChallengeUseCase,
                 startPasswordRecoveryUseCase,
                 confirmPasswordRecoveryUseCase,
+                deleteUserUseCase,
                 new AuthenticationRequestValidator(Validation.buildDefaultValidatorFactory().getValidator()),
                 new AuthenticationRequestMapper(),
                 new AuthenticationResponseMapper(),
@@ -48,9 +55,11 @@ class AuthenticationHandlerTest {
         webTestClient = WebTestClient.bindToRouterFunction(RouterFunctions.route()
                         .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
                         .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN, authenticationHandler::login)
+                        .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGOUT, authenticationHandler::logout)
                         .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
                         .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
                         .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
+                        .DELETE(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.USERS, authenticationHandler::deleteUser)
                         .build())
                 .build();
     }
@@ -82,6 +91,18 @@ class AuthenticationHandlerTest {
                 .expectBody()
                 .jsonPath("$.status").isEqualTo("AUTHENTICATED")
                 .jsonPath("$.tokens.accessToken").isEqualTo("access-token");
+    }
+
+    @Test
+    void shouldLogoutUser() {
+        when(logoutUseCase.execute(any())).thenReturn(Mono.empty());
+
+        webTestClient.post()
+                .uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGOUT)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(AuthenticationApiTestData.logoutRequest())
+                .exchange()
+                .expectStatus().isNoContent();
     }
 
     @Test
@@ -120,6 +141,18 @@ class AuthenticationHandlerTest {
                 .uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(AuthenticationApiTestData.confirmPasswordRecoveryRequest())
+                .exchange()
+                .expectStatus().isNoContent();
+    }
+
+    @Test
+    void shouldDeleteUser() {
+        when(deleteUserUseCase.execute(any())).thenReturn(Mono.empty());
+
+        webTestClient.method(HttpMethod.DELETE)
+                .uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.USERS)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(AuthenticationApiTestData.deleteUserRequest())
                 .exchange()
                 .expectStatus().isNoContent();
     }

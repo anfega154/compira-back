@@ -30,7 +30,7 @@ adapters:
     password: ${DB_PASSWORD:postgres}
   cognito:
     region: ${COGNITO_REGION:us-east-1}
-    user-pool-id: ${COGNITO_USER_POOL_ID:compira-dev-user-pool-id}
-    client-id: ${COGNITO_CLIENT_ID:compira-dev-client-id}
+    user-pool-id: ${COGNITO_USER_POOL_ID:us-east-1_VVpUYZzNy}
+    client-id: ${COGNITO_CLIENT_ID:6lasp5po0eu1gb5frdknoqgaqk}
 cors:
   allowed-origins: "http://localhost:5173,http://localhost:8080"

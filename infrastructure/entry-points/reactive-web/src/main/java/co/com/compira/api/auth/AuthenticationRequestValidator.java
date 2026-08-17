@@ -2,7 +2,9 @@ package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
 import co.com.compira.api.auth.dto.ConfirmUserRegistrationRequest;
+import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
+import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
 import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.dto.StartPasswordRecoveryRequest;
@@ -42,6 +44,10 @@ public class AuthenticationRequestValidator {
         return validate(request);
     }
 
+    public Mono<LogoutRequest> validateLogoutRequest(LogoutRequest request) {
+        return validate(request);
+    }
+
     public Mono<RespondAuthenticationChallengeRequest> validateRespondChallengeRequest(RespondAuthenticationChallengeRequest request) {
         return validate(request)
                 .flatMap(validRequest -> {
@@ -69,6 +75,10 @@ public class AuthenticationRequestValidator {
     }
 
     public Mono<ConfirmPasswordRecoveryRequest> validateConfirmPasswordRecoveryRequest(ConfirmPasswordRecoveryRequest request) {
+        return validate(request);
+    }
+
+    public Mono<DeleteUserRequest> validateDeleteUserRequest(DeleteUserRequest request) {
         return validate(request);
     }
 

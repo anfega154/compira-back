@@ -1,6 +1,7 @@
 package co.com.compira.r2dbc;
 
 import co.com.compira.model.auth.ApplicationUser;
+import co.com.compira.model.auth.AuthenticationLogSanitizer;
 import co.com.compira.model.auth.RegisterUserCommand;
 import co.com.compira.model.auth.UserStatus;
 import co.com.compira.model.auth.gateways.ApplicationUserRepositoryGateway;
@@ -9,10 +10,11 @@ import co.com.compira.model.common.error.ErrorCategory;
 import co.com.compira.r2dbc.mapper.ApplicationUserDataMapper;
 import co.com.compira.model.auth.AuthenticationErrorCode;
 import co.com.compira.model.auth.AuthenticationMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.reactive.TransactionalOperator;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.util.List;
@@ -21,7 +23,15 @@ import java.util.UUID;
 
 @Repository
 public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepositoryGateway {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationUserRepositoryAdapter.class);
     private static final String DEFAULT_ROLE_CODE = "USER";
+    private static final String LOG_CREATE_PENDING_USER = "Persistiendo perfil local pendiente. email={} cognitoSub={}";
+    private static final String LOG_FIND_USER = "Consultando perfil local por correo. email={}";
+    private static final String LOG_ACTIVATE_USER = "Activando perfil local. email={}";
+    private static final String LOG_UPDATE_LAST_LOGIN = "Actualizando último ingreso local. email={}";
+    private static final String LOG_DELETE_USER = "Eliminando perfil local. email={}";
+    private static final String LOG_ASSIGN_ROLE = "Asignando rol por defecto. userId={} role={}";
+    private static final String LOG_BUILD_USER = "Perfil local cargado. email={} userId={}";
     private static final String UPSERT_USER_QUERY = """
             INSERT INTO users (
                 cognito_sub,
@@ -79,6 +89,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
             WHERE email = :email
             RETURNING *
             """;
+    private static final String DELETE_USER_QUERY = "DELETE FROM users WHERE email = :email";
 
     private final DatabaseClient databaseClient;
     private final TransactionalOperator transactionalOperator;
@@ -94,6 +105,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
 
     @Override
     public Mono<ApplicationUser> createPendingUser(RegisterUserCommand command, String cognitoSub) {
+        LOGGER.info(LOG_CREATE_PENDING_USER, AuthenticationLogSanitizer.maskEmail(command.email()), cognitoSub);
         return databaseClient.sql(UPSERT_USER_QUERY)
                 .bind("cognitoSub", cognitoSub)
                 .bind("email", command.email())
@@ -115,12 +127,14 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
 
     @Override
     public Mono<ApplicationUser> findByEmail(String email) {
+        LOGGER.info(LOG_FIND_USER, AuthenticationLogSanitizer.maskEmail(email));
         return selectUserByEmail(email)
                 .flatMap(this::buildApplicationUser);
     }
 
     @Override
     public Mono<ApplicationUser> activateUser(String email) {
+        LOGGER.info(LOG_ACTIVATE_USER, AuthenticationLogSanitizer.maskEmail(email));
         return databaseClient.sql(ACTIVATE_USER_QUERY)
                 .bind("status", UserStatus.ACTIVE.name())
                 .bind("email", email)
@@ -135,6 +149,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
 
     @Override
     public Mono<ApplicationUser> updateLastLogin(String email) {
+        LOGGER.info(LOG_UPDATE_LAST_LOGIN, AuthenticationLogSanitizer.maskEmail(email));
         return databaseClient.sql(UPDATE_LAST_LOGIN_QUERY)
                 .bind("email", email)
                 .fetch()
@@ -146,6 +161,21 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
                 .flatMap(this::buildApplicationUser);
     }
 
+    @Override
+    public Mono<Void> deleteByEmail(String email) {
+        LOGGER.info(LOG_DELETE_USER, AuthenticationLogSanitizer.maskEmail(email));
+        return databaseClient.sql(DELETE_USER_QUERY)
+                .bind("email", email)
+                .fetch()
+                .rowsUpdated()
+                .filter(updatedRows -> updatedRows > 0)
+                .switchIfEmpty(Mono.error(new CompiraException(
+                        AuthenticationErrorCode.LOCAL_USER_NOT_FOUND,
+                        AuthenticationMessage.LOCAL_USER_NOT_FOUND,
+                        ErrorCategory.NOT_FOUND)))
+                .then();
+    }
+
     private Mono<Map<String, Object>> selectUserByEmail(String email) {
         return databaseClient.sql(SELECT_USER_BY_EMAIL_QUERY)
                 .bind("email", email)
@@ -154,6 +184,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
     }
 
     private Mono<Void> assignDefaultRole(UUID userId) {
+        LOGGER.info(LOG_ASSIGN_ROLE, userId, DEFAULT_ROLE_CODE);
         return databaseClient.sql(ASSIGN_ROLE_QUERY)
                 .bind("userId", userId)
                 .bind("roleCode", DEFAULT_ROLE_CODE)
@@ -166,7 +197,8 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
         UUID userId = (UUID) row.get("id");
         return findRoles(userId)
                 .map(roles -> applicationUserDataMapper.fromRow(row, roles))
-                .map(applicationUserDataMapper::toDomain);
+                .map(applicationUserDataMapper::toDomain)
+                .doOnNext(user -> LOGGER.info(LOG_BUILD_USER, AuthenticationLogSanitizer.maskEmail(user.email()), user.id()));
     }
 
     private Mono<List<String>> findRoles(UUID userId) {

@@ -3,11 +3,13 @@ package co.com.compira.cognito;
 import co.com.compira.cognito.config.CognitoIdentityProviderProperties;
 import co.com.compira.cognito.mapper.CognitoAuthenticationResultMapper;
 import co.com.compira.model.auth.AuthenticationChallengeName;
+import co.com.compira.model.auth.AuthenticationLogSanitizer;
 import co.com.compira.model.auth.AuthenticationResult;
 import co.com.compira.model.auth.CodeDeliveryDetails;
 import co.com.compira.model.auth.ConfirmPasswordRecoveryCommand;
 import co.com.compira.model.auth.ConfirmUserRegistrationCommand;
 import co.com.compira.model.auth.LoginCommand;
+import co.com.compira.model.auth.LogoutCommand;
 import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.PasswordRecoveryResult;
 import co.com.compira.model.auth.RegisterUserCommand;
@@ -19,6 +21,8 @@ import co.com.compira.model.common.error.CompiraException;
 import co.com.compira.model.common.error.ErrorCategory;
 import co.com.compira.model.auth.AuthenticationErrorCode;
 import co.com.compira.model.auth.AuthenticationMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderAsyncClient;
@@ -32,6 +36,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmSign
 import software.amazon.awssdk.services.cognitoidentityprovider.model.EmailMfaSettingsType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ExpiredCodeException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ForgotPasswordRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.GlobalSignOutRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidPasswordException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidParameterException;
@@ -53,6 +58,20 @@ import java.util.concurrent.CompletionException;
 
 @Repository
 public class CognitoAuthenticationGatewayAdapter implements AuthenticationGateway {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CognitoAuthenticationGatewayAdapter.class);
+    private static final String OPERATION_SIGN_UP = "cognito-sign-up";
+    private static final String OPERATION_DELETE_USER = "cognito-admin-delete-user";
+    private static final String OPERATION_CONFIRM_SIGN_UP = "cognito-confirm-sign-up";
+    private static final String OPERATION_SET_MFA_PREFERENCE = "cognito-admin-set-mfa-preference";
+    private static final String OPERATION_LOGIN = "cognito-initiate-auth";
+    private static final String OPERATION_RESPOND_CHALLENGE = "cognito-respond-to-auth-challenge";
+    private static final String OPERATION_START_PASSWORD_RECOVERY = "cognito-forgot-password";
+    private static final String OPERATION_CONFIRM_PASSWORD_RECOVERY = "cognito-confirm-forgot-password";
+    private static final String LOG_OPERATION_START = "Invocando operación Cognito. operation={} principal={} detalle={}";
+    private static final String LOG_OPERATION_SUCCESS = "Operación Cognito completada. operation={} principal={} detalle={}";
+    private static final String LOG_OPERATION_FAILURE = "Operación Cognito falló. operation={} principal={} awsType={} awsMessage={}";
+    private static final String LOG_EXCEPTION_MAPPED = "Error Cognito mapeado. operation={} principal={} code={} category={}";
+
     private final CognitoIdentityProviderAsyncClient cognitoIdentityProviderAsyncClient;
     private final CognitoIdentityProviderProperties properties;
     private final CognitoAuthenticationResultMapper cognitoAuthenticationResultMapper;
@@ -67,6 +86,7 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
 
     @Override
     public Mono<UserRegistrationResult> registerUser(RegisterUserCommand command) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(command.email());
         SignUpRequest request = SignUpRequest.builder()
                 .clientId(properties.clientId())
                 .username(command.email())
@@ -74,28 +94,38 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 .userAttributes(buildUserAttributes(command))
                 .build();
 
+        LOGGER.info(LOG_OPERATION_START, OPERATION_SIGN_UP, maskedEmail, command.preferredMfaChannel().name());
         return Mono.fromFuture(cognitoIdentityProviderAsyncClient.signUp(request))
                 .map(response -> new UserRegistrationResult(
                         response.userSub(),
                         response.userConfirmed(),
                         mapCodeDeliveryDetails(response.codeDeliveryDetails())))
-                .onErrorMap(this::mapException);
+                .doOnNext(result -> LOGGER.info(
+                        LOG_OPERATION_SUCCESS,
+                        OPERATION_SIGN_UP,
+                        maskedEmail,
+                        "userConfirmed=" + result.userConfirmed()))
+                .onErrorMap(error -> mapException(OPERATION_SIGN_UP, maskedEmail, error));
     }
 
     @Override
     public Mono<Void> deleteUser(String username) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(username);
         AdminDeleteUserRequest request = AdminDeleteUserRequest.builder()
                 .userPoolId(properties.userPoolId())
                 .username(username)
                 .build();
 
+        LOGGER.info(LOG_OPERATION_START, OPERATION_DELETE_USER, maskedEmail, properties.userPoolId());
         return Mono.fromFuture(cognitoIdentityProviderAsyncClient.adminDeleteUser(request))
+                .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_DELETE_USER, maskedEmail, properties.userPoolId()))
                 .then()
-                .onErrorMap(this::mapException);
+                .onErrorMap(error -> mapException(OPERATION_DELETE_USER, maskedEmail, error));
     }
 
     @Override
     public Mono<Void> confirmUserRegistration(ConfirmUserRegistrationCommand command, MfaChannel preferredMfaChannel) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(command.email());
         ConfirmSignUpRequest confirmSignUpRequest = ConfirmSignUpRequest.builder()
                 .clientId(properties.clientId())
                 .username(command.email())
@@ -115,14 +145,29 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                         .build())
                 .build();
 
+        LOGGER.info(LOG_OPERATION_START, OPERATION_CONFIRM_SIGN_UP, maskedEmail, preferredMfaChannel.name());
         return Mono.fromFuture(cognitoIdentityProviderAsyncClient.confirmSignUp(confirmSignUpRequest))
-                .then(Mono.fromFuture(cognitoIdentityProviderAsyncClient.adminSetUserMFAPreference(mfaPreferenceRequest)))
+                .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_CONFIRM_SIGN_UP, maskedEmail, "confirmado"))
+                .onErrorMap(error -> mapException(OPERATION_CONFIRM_SIGN_UP, maskedEmail, error))
+                .then(Mono.fromFuture(cognitoIdentityProviderAsyncClient.adminSetUserMFAPreference(mfaPreferenceRequest))
+                        .doOnSubscribe(ignored -> LOGGER.info(
+                                LOG_OPERATION_START,
+                                OPERATION_SET_MFA_PREFERENCE,
+                                maskedEmail,
+                                preferredMfaChannel.name()))
+                        .doOnSuccess(response -> LOGGER.info(
+                                LOG_OPERATION_SUCCESS,
+                                OPERATION_SET_MFA_PREFERENCE,
+                                maskedEmail,
+                                preferredMfaChannel.name()))
+                        .onErrorMap(error -> mapException(OPERATION_SET_MFA_PREFERENCE, maskedEmail, error)))
                 .then()
-                .onErrorMap(this::mapException);
+                .onErrorMap(error -> mapException(OPERATION_CONFIRM_SIGN_UP, maskedEmail, error));
     }
 
     @Override
     public Mono<AuthenticationResult> login(LoginCommand command) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(command.username());
         InitiateAuthRequest request = InitiateAuthRequest.builder()
                 .clientId(properties.clientId())
                 .authFlow("USER_PASSWORD_AUTH")
@@ -131,13 +176,30 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                         CognitoAuthenticationConstants.PASSWORD_PARAMETER, command.password()))
                 .build();
 
+        LOGGER.info(LOG_OPERATION_START, OPERATION_LOGIN, maskedEmail, "USER_PASSWORD_AUTH");
         return Mono.fromFuture(cognitoIdentityProviderAsyncClient.initiateAuth(request))
                 .map(cognitoAuthenticationResultMapper::fromInitiateAuthResponse)
-                .onErrorMap(this::mapException);
+                .doOnNext(result -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_LOGIN, maskedEmail, result.status().name()))
+                .onErrorMap(error -> mapException(OPERATION_LOGIN, maskedEmail, error));
+    }
+
+    @Override
+    public Mono<Void> logout(LogoutCommand command) {
+        String maskedAccessToken = AuthenticationLogSanitizer.maskAccessToken(command.accessToken());
+        GlobalSignOutRequest request = GlobalSignOutRequest.builder()
+                .accessToken(command.accessToken())
+                .build();
+
+        LOGGER.info(LOG_OPERATION_START, "cognito-global-sign-out", maskedAccessToken, "logout");
+        return Mono.fromFuture(cognitoIdentityProviderAsyncClient.globalSignOut(request))
+                .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, "cognito-global-sign-out", maskedAccessToken, "logout"))
+                .then()
+                .onErrorMap(error -> mapException("cognito-global-sign-out", maskedAccessToken, error));
     }
 
     @Override
     public Mono<AuthenticationResult> respondToChallenge(RespondAuthenticationChallengeCommand command) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(command.username());
         RespondToAuthChallengeRequest request = RespondToAuthChallengeRequest.builder()
                 .clientId(properties.clientId())
                 .challengeName(command.challengeName().name())
@@ -145,25 +207,43 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 .challengeResponses(buildChallengeResponses(command))
                 .build();
 
+        LOGGER.info(
+                LOG_OPERATION_START,
+                OPERATION_RESPOND_CHALLENGE,
+                maskedEmail,
+                command.challengeName().name() + ":" + AuthenticationLogSanitizer.maskSession(command.session()));
         return Mono.fromFuture(cognitoIdentityProviderAsyncClient.respondToAuthChallenge(request))
                 .map(cognitoAuthenticationResultMapper::fromRespondToChallengeResponse)
-                .onErrorMap(this::mapException);
+                .doOnNext(result -> LOGGER.info(
+                        LOG_OPERATION_SUCCESS,
+                        OPERATION_RESPOND_CHALLENGE,
+                        maskedEmail,
+                        result.status().name()))
+                .onErrorMap(error -> mapException(OPERATION_RESPOND_CHALLENGE, maskedEmail, error));
     }
 
     @Override
     public Mono<PasswordRecoveryResult> startPasswordRecovery(StartPasswordRecoveryCommand command) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(command.email());
         ForgotPasswordRequest request = ForgotPasswordRequest.builder()
                 .clientId(properties.clientId())
                 .username(command.email())
                 .build();
 
+        LOGGER.info(LOG_OPERATION_START, OPERATION_START_PASSWORD_RECOVERY, maskedEmail, properties.clientId());
         return Mono.fromFuture(cognitoIdentityProviderAsyncClient.forgotPassword(request))
                 .map(response -> new PasswordRecoveryResult(mapCodeDeliveryDetails(response.codeDeliveryDetails())))
-                .onErrorMap(this::mapException);
+                .doOnNext(result -> LOGGER.info(
+                        LOG_OPERATION_SUCCESS,
+                        OPERATION_START_PASSWORD_RECOVERY,
+                        maskedEmail,
+                        result.codeDeliveryDetails() != null ? result.codeDeliveryDetails().deliveryMedium() : "<sin-medio>"))
+                .onErrorMap(error -> mapException(OPERATION_START_PASSWORD_RECOVERY, maskedEmail, error));
     }
 
     @Override
     public Mono<Void> confirmPasswordRecovery(ConfirmPasswordRecoveryCommand command) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(command.email());
         ConfirmForgotPasswordRequest request = ConfirmForgotPasswordRequest.builder()
                 .clientId(properties.clientId())
                 .username(command.email())
@@ -171,9 +251,11 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 .password(command.newPassword())
                 .build();
 
+        LOGGER.info(LOG_OPERATION_START, OPERATION_CONFIRM_PASSWORD_RECOVERY, maskedEmail, properties.clientId());
         return Mono.fromFuture(cognitoIdentityProviderAsyncClient.confirmForgotPassword(request))
+                .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_CONFIRM_PASSWORD_RECOVERY, maskedEmail, "confirmado"))
                 .then()
-                .onErrorMap(this::mapException);
+                .onErrorMap(error -> mapException(OPERATION_CONFIRM_PASSWORD_RECOVERY, maskedEmail, error));
     }
 
     private List<AttributeType> buildUserAttributes(RegisterUserCommand command) {
@@ -214,45 +296,49 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 codeDeliveryDetailsType.attributeName());
     }
 
-    private Throwable mapException(Throwable throwable) {
+    private Throwable mapException(String operation, String principal, Throwable throwable) {
         Throwable cause = throwable instanceof CompletionException && throwable.getCause() != null
                 ? throwable.getCause()
                 : throwable;
 
+        LOGGER.error(
+                LOG_OPERATION_FAILURE,
+                operation,
+                principal,
+                cause.getClass().getSimpleName(),
+                cause.getMessage(),
+                cause);
         if (cause instanceof CompiraException) {
             return cause;
         }
-        if (cause instanceof UsernameExistsException) {
-            return new CompiraException(AuthenticationErrorCode.USER_ALREADY_EXISTS, AuthenticationMessage.USER_ALREADY_EXISTS, ErrorCategory.CONFLICT);
-        }
-        if (cause instanceof InvalidPasswordException) {
-            return new CompiraException(AuthenticationErrorCode.INVALID_PASSWORD, AuthenticationMessage.INVALID_PASSWORD, ErrorCategory.BAD_REQUEST);
-        }
-        if (cause instanceof CodeMismatchException) {
-            return new CompiraException(AuthenticationErrorCode.INVALID_CONFIRMATION_CODE, AuthenticationMessage.INVALID_CONFIRMATION_CODE, ErrorCategory.BAD_REQUEST);
-        }
-        if (cause instanceof ExpiredCodeException) {
-            return new CompiraException(AuthenticationErrorCode.EXPIRED_CONFIRMATION_CODE, AuthenticationMessage.EXPIRED_CONFIRMATION_CODE, ErrorCategory.BAD_REQUEST);
-        }
-        if (cause instanceof UserNotConfirmedException) {
-            return new CompiraException(AuthenticationErrorCode.USER_NOT_CONFIRMED, AuthenticationMessage.USER_NOT_CONFIRMED, ErrorCategory.UNAUTHORIZED);
-        }
-        if (cause instanceof UserNotFoundException) {
-            return new CompiraException(AuthenticationErrorCode.USER_NOT_FOUND, AuthenticationMessage.USER_NOT_FOUND, ErrorCategory.NOT_FOUND);
-        }
-        if (cause instanceof NotAuthorizedException) {
-            return new CompiraException(AuthenticationErrorCode.INVALID_CREDENTIALS, AuthenticationMessage.INVALID_CREDENTIALS, ErrorCategory.UNAUTHORIZED);
-        }
-        if (cause instanceof PasswordResetRequiredException) {
-            return new CompiraException(AuthenticationErrorCode.PASSWORD_RESET_REQUIRED, AuthenticationMessage.PASSWORD_RESET_REQUIRED, ErrorCategory.UNAUTHORIZED);
-        }
-        if (cause instanceof TooManyRequestsException || cause instanceof LimitExceededException) {
-            return new CompiraException(AuthenticationErrorCode.TOO_MANY_REQUESTS, AuthenticationMessage.TOO_MANY_REQUESTS, ErrorCategory.TOO_MANY_REQUESTS);
-        }
-        if (cause instanceof InvalidParameterException) {
-            return mapInvalidParameterException((InvalidParameterException) cause);
-        }
-        return new CompiraException(AuthenticationErrorCode.GENERIC_AUTHENTICATION_ERROR, AuthenticationMessage.GENERIC_AUTHENTICATION_ERROR, ErrorCategory.INTERNAL_SERVER_ERROR);
+        CompiraException mappedException = cause instanceof UsernameExistsException
+                ? new CompiraException(AuthenticationErrorCode.USER_ALREADY_EXISTS, AuthenticationMessage.USER_ALREADY_EXISTS, ErrorCategory.CONFLICT)
+                : cause instanceof InvalidPasswordException
+                ? new CompiraException(AuthenticationErrorCode.INVALID_PASSWORD, AuthenticationMessage.INVALID_PASSWORD, ErrorCategory.BAD_REQUEST)
+                : cause instanceof CodeMismatchException
+                ? new CompiraException(AuthenticationErrorCode.INVALID_CONFIRMATION_CODE, AuthenticationMessage.INVALID_CONFIRMATION_CODE, ErrorCategory.BAD_REQUEST)
+                : cause instanceof ExpiredCodeException
+                ? new CompiraException(AuthenticationErrorCode.EXPIRED_CONFIRMATION_CODE, AuthenticationMessage.EXPIRED_CONFIRMATION_CODE, ErrorCategory.BAD_REQUEST)
+                : cause instanceof UserNotConfirmedException
+                ? new CompiraException(AuthenticationErrorCode.USER_NOT_CONFIRMED, AuthenticationMessage.USER_NOT_CONFIRMED, ErrorCategory.UNAUTHORIZED)
+                : cause instanceof UserNotFoundException
+                ? new CompiraException(AuthenticationErrorCode.USER_NOT_FOUND, AuthenticationMessage.USER_NOT_FOUND, ErrorCategory.NOT_FOUND)
+                : cause instanceof NotAuthorizedException
+                ? new CompiraException(AuthenticationErrorCode.INVALID_CREDENTIALS, AuthenticationMessage.INVALID_CREDENTIALS, ErrorCategory.UNAUTHORIZED)
+                : cause instanceof PasswordResetRequiredException
+                ? new CompiraException(AuthenticationErrorCode.PASSWORD_RESET_REQUIRED, AuthenticationMessage.PASSWORD_RESET_REQUIRED, ErrorCategory.UNAUTHORIZED)
+                : cause instanceof TooManyRequestsException || cause instanceof LimitExceededException
+                ? new CompiraException(AuthenticationErrorCode.TOO_MANY_REQUESTS, AuthenticationMessage.TOO_MANY_REQUESTS, ErrorCategory.TOO_MANY_REQUESTS)
+                : cause instanceof InvalidParameterException
+                ? mapInvalidParameterException((InvalidParameterException) cause)
+                : new CompiraException(AuthenticationErrorCode.GENERIC_AUTHENTICATION_ERROR, AuthenticationMessage.GENERIC_AUTHENTICATION_ERROR, ErrorCategory.INTERNAL_SERVER_ERROR);
+        LOGGER.warn(
+                LOG_EXCEPTION_MAPPED,
+                operation,
+                principal,
+                mappedException.getCode(),
+                mappedException.getErrorCategory());
+        return mappedException;
     }
 
     private CompiraException mapInvalidParameterException(InvalidParameterException exception) {

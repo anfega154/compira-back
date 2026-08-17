@@ -4,6 +4,7 @@ import co.com.compira.api.auth.AuthenticationHandler;
 import co.com.compira.api.router.AuthRouterRest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
@@ -48,6 +49,19 @@ class RouterRestTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.status").isEqualTo("ok-v2");
+    }
+
+    @Test
+    void shouldRouteDeleteRequestForApiV1() {
+        when(authenticationHandler.deleteUser(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(ServerResponse.noContent().build());
+
+        webTestClient.method(HttpMethod.DELETE)
+                .uri("/api/v1/auth/users")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue("{\"email\":\"john.doe@compira.co\"}")
+                .exchange()
+                .expectStatus().isNoContent();
     }
 
     @Test

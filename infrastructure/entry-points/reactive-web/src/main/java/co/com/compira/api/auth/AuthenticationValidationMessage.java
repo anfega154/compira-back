@@ -19,6 +19,8 @@ public final class AuthenticationValidationMessage {
     public static final String CHALLENGE_CODE_REQUIRED = "El código de confirmación es obligatorio";
     public static final String NEW_PASSWORD_REQUIRED = "La nueva contraseña es obligatoria";
     public static final String NEW_PASSWORD_LENGTH = "La nueva contraseña debe tener entre 8 y 128 caracteres";
+    public static final String DELETE_USER_SUCCESS = "Usuario eliminado correctamente";
+    public static final String ACCESS_TOKEN_REQUIRED = "El access token es obligatorio";
 
     private AuthenticationValidationMessage() {
     }

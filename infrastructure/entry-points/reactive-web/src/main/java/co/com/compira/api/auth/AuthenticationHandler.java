@@ -2,18 +2,25 @@ package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
 import co.com.compira.api.auth.dto.ConfirmUserRegistrationRequest;
+import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
+import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
 import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.dto.StartPasswordRecoveryRequest;
+import co.com.compira.model.auth.AuthenticationLogSanitizer;
 import co.com.compira.api.auth.mapper.AuthenticationRequestMapper;
 import co.com.compira.api.auth.mapper.AuthenticationResponseMapper;
 import co.com.compira.usecase.confirmpasswordrecovery.ConfirmPasswordRecoveryUseCase;
 import co.com.compira.usecase.confirmuserregistration.ConfirmUserRegistrationUseCase;
+import co.com.compira.usecase.deleteuser.DeleteUserUseCase;
 import co.com.compira.usecase.login.LoginUseCase;
+import co.com.compira.usecase.logout.LogoutUseCase;
 import co.com.compira.usecase.registeruser.RegisterUserUseCase;
 import co.com.compira.usecase.respondauthenticationchallenge.RespondAuthenticationChallengeUseCase;
 import co.com.compira.usecase.startpasswordrecovery.StartPasswordRecoveryUseCase;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -23,12 +30,32 @@ import reactor.core.publisher.Mono;
 
 @Component
 public class AuthenticationHandler {
+    private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationHandler.class);
+    private static final String LOG_REGISTER_REQUEST = "Inicio solicitud de registro. email={}";
+    private static final String LOG_REGISTER_SUCCESS = "Registro procesado correctamente. email={} cognitoSub={} confirmado={}";
+    private static final String LOG_CONFIRM_REQUEST = "Inicio confirmación de registro. email={}";
+    private static final String LOG_CONFIRM_SUCCESS = "Confirmación de registro completada. email={} estado={}";
+    private static final String LOG_LOGIN_REQUEST = "Inicio autenticación. email={}";
+    private static final String LOG_LOGIN_SUCCESS = "Autenticación procesada. email={} resultado={}";
+    private static final String LOG_LOGOUT_REQUEST = "Inicio cierre de sesión. accessToken={}";
+    private static final String LOG_LOGOUT_SUCCESS = "Cierre de sesión completado. accessToken={}";
+    private static final String LOG_CHALLENGE_REQUEST = "Inicio respuesta de reto. email={} challenge={} session={}";
+    private static final String LOG_CHALLENGE_SUCCESS = "Reto procesado. email={} resultado={}";
+    private static final String LOG_PASSWORD_RECOVERY_REQUEST = "Inicio recuperación de contraseña. email={}";
+    private static final String LOG_PASSWORD_RECOVERY_SUCCESS = "Recuperación de contraseña iniciada. email={} medio={}";
+    private static final String LOG_PASSWORD_RECOVERY_CONFIRM_REQUEST = "Inicio confirmación de recuperación de contraseña. email={}";
+    private static final String LOG_PASSWORD_RECOVERY_CONFIRM_SUCCESS = "Confirmación de recuperación de contraseña completada. email={}";
+    private static final String LOG_DELETE_USER_REQUEST = "Inicio eliminación de usuario. email={}";
+    private static final String LOG_DELETE_USER_SUCCESS = "Eliminación de usuario completada. email={}";
+
     private final RegisterUserUseCase registerUserUseCase;
     private final ConfirmUserRegistrationUseCase confirmUserRegistrationUseCase;
     private final LoginUseCase loginUseCase;
+    private final LogoutUseCase logoutUseCase;
     private final RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase;
     private final StartPasswordRecoveryUseCase startPasswordRecoveryUseCase;
     private final ConfirmPasswordRecoveryUseCase confirmPasswordRecoveryUseCase;
+    private final DeleteUserUseCase deleteUserUseCase;
     private final AuthenticationRequestValidator authenticationRequestValidator;
     private final AuthenticationRequestMapper authenticationRequestMapper;
     private final AuthenticationResponseMapper authenticationResponseMapper;
@@ -37,9 +64,11 @@ public class AuthenticationHandler {
     public AuthenticationHandler(RegisterUserUseCase registerUserUseCase,
                                  ConfirmUserRegistrationUseCase confirmUserRegistrationUseCase,
                                  LoginUseCase loginUseCase,
+                                 LogoutUseCase logoutUseCase,
                                  RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase,
                                  StartPasswordRecoveryUseCase startPasswordRecoveryUseCase,
                                  ConfirmPasswordRecoveryUseCase confirmPasswordRecoveryUseCase,
+                                 DeleteUserUseCase deleteUserUseCase,
                                  AuthenticationRequestValidator authenticationRequestValidator,
                                  AuthenticationRequestMapper authenticationRequestMapper,
                                  AuthenticationResponseMapper authenticationResponseMapper,
@@ -47,9 +76,11 @@ public class AuthenticationHandler {
         this.registerUserUseCase = registerUserUseCase;
         this.confirmUserRegistrationUseCase = confirmUserRegistrationUseCase;
         this.loginUseCase = loginUseCase;
+        this.logoutUseCase = logoutUseCase;
         this.respondAuthenticationChallengeUseCase = respondAuthenticationChallengeUseCase;
         this.startPasswordRecoveryUseCase = startPasswordRecoveryUseCase;
         this.confirmPasswordRecoveryUseCase = confirmPasswordRecoveryUseCase;
+        this.deleteUserUseCase = deleteUserUseCase;
         this.authenticationRequestValidator = authenticationRequestValidator;
         this.authenticationRequestMapper = authenticationRequestMapper;
         this.authenticationResponseMapper = authenticationResponseMapper;
@@ -58,21 +89,29 @@ public class AuthenticationHandler {
 
     public Mono<ServerResponse> registerUser(ServerRequest serverRequest) {
         return serverRequest.bodyToMono(RegisterUserRequest.class)
-                .flatMap(authenticationRequestValidator::validateRegisterUserRequest)
-                .map(authenticationRequestMapper::toCommand)
-                .flatMap(registerUserUseCase::execute)
-                .map(authenticationResponseMapper::toResponse)
-                .flatMap(response -> ServerResponse.status(HttpStatus.CREATED)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(response))
+                .doOnNext(request -> LOGGER.info(LOG_REGISTER_REQUEST, AuthenticationLogSanitizer.maskEmail(request.email())))
+                .flatMap(request -> authenticationRequestValidator.validateRegisterUserRequest(request)
+                        .map(authenticationRequestMapper::toCommand)
+                        .flatMap(registerUserUseCase::execute)
+                        .doOnNext(response -> LOGGER.info(
+                                LOG_REGISTER_SUCCESS,
+                                AuthenticationLogSanitizer.maskEmail(request.email()),
+                                response.cognitoSub(),
+                                response.userConfirmed()))
+                        .map(authenticationResponseMapper::toResponse)
+                        .flatMap(response -> ServerResponse.status(HttpStatus.CREATED)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(response)))
                 .onErrorResume(authenticationErrorHandler::handle);
     }
 
     public Mono<ServerResponse> confirmUserRegistration(ServerRequest serverRequest) {
         return serverRequest.bodyToMono(ConfirmUserRegistrationRequest.class)
+                .doOnNext(request -> LOGGER.info(LOG_CONFIRM_REQUEST, AuthenticationLogSanitizer.maskEmail(request.email())))
                 .flatMap(authenticationRequestValidator::validateConfirmRegistrationRequest)
                 .map(authenticationRequestMapper::toCommand)
                 .flatMap(confirmUserRegistrationUseCase::execute)
+                .doOnNext(user -> LOGGER.info(LOG_CONFIRM_SUCCESS, AuthenticationLogSanitizer.maskEmail(user.email()), user.status()))
                 .map(authenticationResponseMapper::toResponse)
                 .flatMap(response -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)
@@ -82,46 +121,97 @@ public class AuthenticationHandler {
 
     public Mono<ServerResponse> login(ServerRequest serverRequest) {
         return serverRequest.bodyToMono(LoginRequest.class)
-                .flatMap(authenticationRequestValidator::validateLoginRequest)
-                .map(authenticationRequestMapper::toCommand)
-                .flatMap(loginUseCase::execute)
-                .map(authenticationResponseMapper::toResponse)
-                .flatMap(response -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(response))
+                .doOnNext(request -> LOGGER.info(LOG_LOGIN_REQUEST, AuthenticationLogSanitizer.maskEmail(request.email())))
+                .flatMap(request -> authenticationRequestValidator.validateLoginRequest(request)
+                        .map(authenticationRequestMapper::toCommand)
+                        .flatMap(loginUseCase::execute)
+                        .doOnNext(result -> LOGGER.info(
+                                LOG_LOGIN_SUCCESS,
+                                AuthenticationLogSanitizer.maskEmail(request.email()),
+                                result.status()))
+                        .map(authenticationResponseMapper::toResponse)
+                        .flatMap(response -> ServerResponse.ok()
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(response)))
+                .onErrorResume(authenticationErrorHandler::handle);
+    }
+
+    public Mono<ServerResponse> logout(ServerRequest serverRequest) {
+        return serverRequest.bodyToMono(LogoutRequest.class)
+                .doOnNext(request -> LOGGER.info(
+                        LOG_LOGOUT_REQUEST,
+                        AuthenticationLogSanitizer.maskAccessToken(request.accessToken())))
+                .flatMap(request -> authenticationRequestValidator.validateLogoutRequest(request)
+                        .map(authenticationRequestMapper::toCommand)
+                        .flatMap(logoutUseCase::execute)
+                        .doOnSuccess(ignored -> LOGGER.info(
+                                LOG_LOGOUT_SUCCESS,
+                                AuthenticationLogSanitizer.maskAccessToken(request.accessToken())))
+                        .then(ServerResponse.noContent().build()))
                 .onErrorResume(authenticationErrorHandler::handle);
     }
 
     public Mono<ServerResponse> respondAuthenticationChallenge(ServerRequest serverRequest) {
         return serverRequest.bodyToMono(RespondAuthenticationChallengeRequest.class)
-                .flatMap(authenticationRequestValidator::validateRespondChallengeRequest)
-                .map(authenticationRequestMapper::toCommand)
-                .flatMap(respondAuthenticationChallengeUseCase::execute)
-                .map(authenticationResponseMapper::toResponse)
-                .flatMap(response -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(response))
+                .doOnNext(request -> LOGGER.info(
+                        LOG_CHALLENGE_REQUEST,
+                        AuthenticationLogSanitizer.maskEmail(request.email()),
+                        request.challengeName(),
+                        AuthenticationLogSanitizer.maskSession(request.session())))
+                .flatMap(request -> authenticationRequestValidator.validateRespondChallengeRequest(request)
+                        .map(authenticationRequestMapper::toCommand)
+                        .flatMap(respondAuthenticationChallengeUseCase::execute)
+                        .doOnNext(result -> LOGGER.info(
+                                LOG_CHALLENGE_SUCCESS,
+                                AuthenticationLogSanitizer.maskEmail(request.email()),
+                                result.status()))
+                        .map(authenticationResponseMapper::toResponse)
+                        .flatMap(response -> ServerResponse.ok()
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(response)))
                 .onErrorResume(authenticationErrorHandler::handle);
     }
 
     public Mono<ServerResponse> startPasswordRecovery(ServerRequest serverRequest) {
         return serverRequest.bodyToMono(StartPasswordRecoveryRequest.class)
-                .flatMap(authenticationRequestValidator::validateStartPasswordRecoveryRequest)
-                .map(authenticationRequestMapper::toCommand)
-                .flatMap(startPasswordRecoveryUseCase::execute)
-                .map(authenticationResponseMapper::toResponse)
-                .flatMap(response -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(response))
+                .doOnNext(request -> LOGGER.info(LOG_PASSWORD_RECOVERY_REQUEST, AuthenticationLogSanitizer.maskEmail(request.email())))
+                .flatMap(request -> authenticationRequestValidator.validateStartPasswordRecoveryRequest(request)
+                        .map(authenticationRequestMapper::toCommand)
+                        .flatMap(startPasswordRecoveryUseCase::execute)
+                        .doOnNext(result -> LOGGER.info(
+                                LOG_PASSWORD_RECOVERY_SUCCESS,
+                                AuthenticationLogSanitizer.maskEmail(request.email()),
+                                result.codeDeliveryDetails() != null ? result.codeDeliveryDetails().deliveryMedium() : "<sin-medio>"))
+                        .map(authenticationResponseMapper::toResponse)
+                        .flatMap(response -> ServerResponse.ok()
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .bodyValue(response)))
                 .onErrorResume(authenticationErrorHandler::handle);
     }
 
     public Mono<ServerResponse> confirmPasswordRecovery(ServerRequest serverRequest) {
         return serverRequest.bodyToMono(ConfirmPasswordRecoveryRequest.class)
-                .flatMap(authenticationRequestValidator::validateConfirmPasswordRecoveryRequest)
-                .map(authenticationRequestMapper::toCommand)
-                .flatMap(confirmPasswordRecoveryUseCase::execute)
-                .then(ServerResponse.noContent().build())
+                .doOnNext(request -> LOGGER.info(LOG_PASSWORD_RECOVERY_CONFIRM_REQUEST, AuthenticationLogSanitizer.maskEmail(request.email())))
+                .flatMap(request -> authenticationRequestValidator.validateConfirmPasswordRecoveryRequest(request)
+                        .map(authenticationRequestMapper::toCommand)
+                        .flatMap(confirmPasswordRecoveryUseCase::execute)
+                        .doOnSuccess(ignored -> LOGGER.info(
+                                LOG_PASSWORD_RECOVERY_CONFIRM_SUCCESS,
+                                AuthenticationLogSanitizer.maskEmail(request.email())))
+                        .then(ServerResponse.noContent().build()))
+                .onErrorResume(authenticationErrorHandler::handle);
+    }
+
+    public Mono<ServerResponse> deleteUser(ServerRequest serverRequest) {
+        return serverRequest.bodyToMono(DeleteUserRequest.class)
+                .doOnNext(request -> LOGGER.info(LOG_DELETE_USER_REQUEST, AuthenticationLogSanitizer.maskEmail(request.email())))
+                .flatMap(request -> authenticationRequestValidator.validateDeleteUserRequest(request)
+                        .map(authenticationRequestMapper::toCommand)
+                        .flatMap(deleteUserUseCase::execute)
+                        .doOnSuccess(ignored -> LOGGER.info(
+                                LOG_DELETE_USER_SUCCESS,
+                                AuthenticationLogSanitizer.maskEmail(request.email())))
+                        .then(ServerResponse.noContent().build()))
                 .onErrorResume(authenticationErrorHandler::handle);
     }
 }

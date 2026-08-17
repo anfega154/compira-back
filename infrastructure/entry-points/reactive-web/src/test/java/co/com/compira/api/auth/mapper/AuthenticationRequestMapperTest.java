@@ -25,4 +25,18 @@ class AuthenticationRequestMapperTest {
         assertEquals(AuthenticationChallengeName.EMAIL_OTP, command.challengeName());
         assertEquals("654321", command.code());
     }
+
+    @Test
+    void shouldMapDeleteUserRequestToCommand() {
+        var command = mapper.toCommand(AuthenticationApiTestData.deleteUserRequest());
+
+        assertEquals("john.doe@compira.co", command.email());
+    }
+
+    @Test
+    void shouldMapLogoutRequestToCommand() {
+        var command = mapper.toCommand(AuthenticationApiTestData.logoutRequest());
+
+        assertEquals("access-token", command.accessToken());
+    }
 }
