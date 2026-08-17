@@ -4,8 +4,8 @@ import co.com.compira.model.auth.ApplicationUser;
 import co.com.compira.model.auth.AuthenticationChallenge;
 import co.com.compira.model.auth.AuthenticationChallengeName;
 import co.com.compira.model.auth.AuthenticationResult;
-import co.com.compira.model.auth.AuthenticationTokens;
 import co.com.compira.model.auth.AuthenticationStatus;
+import co.com.compira.model.auth.AuthenticationTokens;
 import co.com.compira.model.auth.CodeDeliveryDetails;
 import co.com.compira.model.auth.ConfirmPasswordRecoveryCommand;
 import co.com.compira.model.auth.ConfirmUserRegistrationCommand;
@@ -16,7 +16,9 @@ import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.PasswordRecoveryResult;
 import co.com.compira.model.auth.RegisterUserCommand;
 import co.com.compira.model.auth.RespondAuthenticationChallengeCommand;
+import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.auth.StartPasswordRecoveryCommand;
+import co.com.compira.model.user.User;
 import co.com.compira.model.auth.UserRegistrationResult;
 import co.com.compira.model.auth.UserStatus;
 
@@ -35,7 +37,8 @@ public final class AuthenticationTestData {
                 "John",
                 "Doe",
                 "+573001112233",
-                MfaChannel.EMAIL);
+                MfaChannel.EMAIL,
+                RoleCode.COLLABORATOR);
     }
 
     public static ConfirmUserRegistrationCommand confirmUserRegistrationCommand() {
@@ -81,33 +84,21 @@ public final class AuthenticationTestData {
 
     public static ApplicationUser pendingApplicationUser() {
         return new ApplicationUser(
-                UUID.fromString("fbb1401d-95a6-4f73-b5b8-a6d1d6f3c812"),
+                user(OffsetDateTime.parse("2026-08-16T12:00:00Z"), OffsetDateTime.parse("2026-08-16T12:00:00Z")),
                 "cognito-sub-123",
-                "john.doe@compira.co",
-                "John",
-                "Doe",
-                "+573001112233",
-                MfaChannel.EMAIL,
                 UserStatus.PENDING_CONFIRMATION,
-                List.of("USER"),
-                OffsetDateTime.parse("2026-08-16T12:00:00Z"),
-                OffsetDateTime.parse("2026-08-16T12:00:00Z"),
+                MfaChannel.EMAIL,
+                List.of(RoleCode.COLLABORATOR.name()),
                 null);
     }
 
     public static ApplicationUser activeApplicationUser() {
         return new ApplicationUser(
-                UUID.fromString("fbb1401d-95a6-4f73-b5b8-a6d1d6f3c812"),
+                user(OffsetDateTime.parse("2026-08-16T12:00:00Z"), OffsetDateTime.parse("2026-08-16T12:05:00Z")),
                 "cognito-sub-123",
-                "john.doe@compira.co",
-                "John",
-                "Doe",
-                "+573001112233",
-                MfaChannel.EMAIL,
                 UserStatus.ACTIVE,
-                List.of("USER"),
-                OffsetDateTime.parse("2026-08-16T12:00:00Z"),
-                OffsetDateTime.parse("2026-08-16T12:05:00Z"),
+                MfaChannel.EMAIL,
+                List.of(RoleCode.COLLABORATOR.name()),
                 OffsetDateTime.parse("2026-08-16T12:05:00Z"));
     }
 
@@ -133,5 +124,16 @@ public final class AuthenticationTestData {
 
     public static PasswordRecoveryResult passwordRecoveryResult() {
         return new PasswordRecoveryResult(codeDeliveryDetails());
+    }
+
+    private static User user(OffsetDateTime createdAt, OffsetDateTime updatedAt) {
+        return new User(
+                UUID.fromString("fbb1401d-95a6-4f73-b5b8-a6d1d6f3c812"),
+                "john.doe@compira.co",
+                "John",
+                "Doe",
+                "+573001112233",
+                createdAt,
+                updatedAt);
     }
 }

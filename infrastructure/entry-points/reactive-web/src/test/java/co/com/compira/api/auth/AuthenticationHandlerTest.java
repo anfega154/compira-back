@@ -162,14 +162,15 @@ class AuthenticationHandlerTest {
         webTestClient.post()
                 .uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.REGISTER)
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(new RegisterUserRequest("", "123", "", "", "123", "PUSH"))
+                .bodyValue(new RegisterUserRequest("", "123", "", "", "123", "PUSH", "OWNER"))
                 .exchange()
                 .expectStatus().isBadRequest()
                 .expectBody()
                 .jsonPath("$.code").isEqualTo("AUTH_014")
                 .jsonPath("$.message").value(message -> org.assertj.core.api.Assertions.assertThat(message.toString())
                         .contains("El correo electrónico es obligatorio")
-                        .contains("El canal MFA preferido debe ser EMAIL o SMS"));
+                        .contains("El canal MFA preferido debe ser EMAIL o SMS")
+                        .contains("El rol debe ser ADMINISTRATOR, COORDINATOR o COLLABORATOR"));
     }
 
     @Test

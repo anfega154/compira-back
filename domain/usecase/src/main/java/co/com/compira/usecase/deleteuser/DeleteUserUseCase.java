@@ -25,7 +25,7 @@ public class DeleteUserUseCase {
                         AuthenticationErrorCode.LOCAL_USER_NOT_FOUND,
                         AuthenticationMessage.LOCAL_USER_NOT_FOUND,
                         ErrorCategory.NOT_FOUND)))
-                .flatMap(user -> authenticationGateway.deleteUser(user.email())
-                        .then(applicationUserRepositoryGateway.deleteByEmail(user.email())));
+                .flatMap(applicationUser -> authenticationGateway.deleteUser(applicationUser.user().email())
+                        .then(applicationUserRepositoryGateway.deleteByEmail(applicationUser.user().email())));
     }
 }

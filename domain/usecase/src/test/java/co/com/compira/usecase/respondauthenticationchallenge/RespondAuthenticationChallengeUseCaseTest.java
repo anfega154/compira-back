@@ -23,7 +23,7 @@ class RespondAuthenticationChallengeUseCaseTest {
                 .thenReturn(Mono.just(AuthenticationTestData.activeApplicationUser()));
 
         StepVerifier.create(useCase.execute(AuthenticationTestData.respondAuthenticationChallengeCommand()))
-                .assertNext(result -> org.junit.jupiter.api.Assertions.assertEquals("john.doe@compira.co", result.user().email()))
+                .assertNext(result -> org.junit.jupiter.api.Assertions.assertEquals("john.doe@compira.co", result.user().user().email()))
                 .verifyComplete();
     }
 }

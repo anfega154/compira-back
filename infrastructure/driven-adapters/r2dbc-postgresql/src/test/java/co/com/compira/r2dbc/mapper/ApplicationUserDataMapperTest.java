@@ -1,6 +1,7 @@
 package co.com.compira.r2dbc.mapper;
 
 import co.com.compira.model.auth.MfaChannel;
+import co.com.compira.model.auth.RoleCode;
 import org.junit.jupiter.api.Test;
 
 import java.time.OffsetDateTime;
@@ -32,10 +33,11 @@ class ApplicationUserDataMapperTest {
                 Map.entry("updated_at", updatedAt),
                 Map.entry("last_login_at", updatedAt));
 
-        var domainUser = mapper.toDomain(mapper.fromRow(row, List.of("USER")));
+        var domainUser = mapper.toDomain(mapper.fromRow(row, List.of(RoleCode.COLLABORATOR.name())));
 
-        assertEquals(userId, domainUser.id());
+        assertEquals(userId, domainUser.user().id());
+        assertEquals("john.doe@compira.co", domainUser.user().email());
         assertEquals(MfaChannel.EMAIL, domainUser.preferredMfaChannel());
-        assertEquals("USER", domainUser.roles().getFirst());
+        assertEquals(RoleCode.COLLABORATOR.name(), domainUser.roles().getFirst());
     }
 }

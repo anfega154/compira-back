@@ -1,20 +1,15 @@
 package co.com.compira.model.auth;
 
+import co.com.compira.model.user.User;
+
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 
 public record ApplicationUser(
-        UUID id,
+        User user,
         String cognitoSub,
-        String email,
-        String firstName,
-        String lastName,
-        String phoneNumber,
-        MfaChannel preferredMfaChannel,
         UserStatus status,
+        MfaChannel preferredMfaChannel,
         List<String> roles,
-        OffsetDateTime createdAt,
-        OffsetDateTime updatedAt,
         OffsetDateTime lastLoginAt) {
 }

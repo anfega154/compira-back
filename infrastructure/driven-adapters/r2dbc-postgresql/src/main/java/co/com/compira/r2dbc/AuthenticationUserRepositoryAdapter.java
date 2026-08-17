@@ -3,6 +3,7 @@ package co.com.compira.r2dbc;
 import co.com.compira.model.auth.ApplicationUser;
 import co.com.compira.model.auth.AuthenticationLogSanitizer;
 import co.com.compira.model.auth.RegisterUserCommand;
+import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.auth.UserStatus;
 import co.com.compira.model.auth.gateways.ApplicationUserRepositoryGateway;
 import co.com.compira.model.common.error.CompiraException;
@@ -24,13 +25,13 @@ import java.util.UUID;
 @Repository
 public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepositoryGateway {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationUserRepositoryAdapter.class);
-    private static final String DEFAULT_ROLE_CODE = "USER";
+    private static final String DEFAULT_ROLE_CODE = RoleCode.COLLABORATOR.name();
     private static final String LOG_CREATE_PENDING_USER = "Persistiendo perfil local pendiente. email={} cognitoSub={}";
     private static final String LOG_FIND_USER = "Consultando perfil local por correo. email={}";
     private static final String LOG_ACTIVATE_USER = "Activando perfil local. email={}";
     private static final String LOG_UPDATE_LAST_LOGIN = "Actualizando último ingreso local. email={}";
     private static final String LOG_DELETE_USER = "Eliminando perfil local. email={}";
-    private static final String LOG_ASSIGN_ROLE = "Asignando rol por defecto. userId={} role={}";
+    private static final String LOG_ASSIGN_ROLE = "Asignando rol local. userId={} role={}";
     private static final String LOG_BUILD_USER = "Perfil local cargado. email={} userId={}";
     private static final String UPSERT_USER_QUERY = """
             INSERT INTO users (
@@ -120,7 +121,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
                         AuthenticationErrorCode.GENERIC_AUTHENTICATION_ERROR,
                         AuthenticationMessage.LOCAL_USER_PERSISTENCE_ERROR,
                         ErrorCategory.INTERNAL_SERVER_ERROR)))
-                .flatMap(row -> assignDefaultRole((UUID) row.get("id"))
+                .flatMap(row -> assignRole((UUID) row.get("id"), resolveRoleCode(command))
                         .then(buildApplicationUser(row)))
                 .as(transactionalOperator::transactional);
     }
@@ -183,14 +184,23 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
                 .one();
     }
 
-    private Mono<Void> assignDefaultRole(UUID userId) {
-        LOGGER.info(LOG_ASSIGN_ROLE, userId, DEFAULT_ROLE_CODE);
+    private Mono<Void> assignRole(UUID userId, String roleCode) {
+        LOGGER.info(LOG_ASSIGN_ROLE, userId, roleCode);
         return databaseClient.sql(ASSIGN_ROLE_QUERY)
                 .bind("userId", userId)
-                .bind("roleCode", DEFAULT_ROLE_CODE)
+                .bind("roleCode", roleCode)
                 .fetch()
                 .rowsUpdated()
+                .filter(updatedRows -> updatedRows > 0)
+                .switchIfEmpty(Mono.error(new CompiraException(
+                        AuthenticationErrorCode.INVALID_REQUEST,
+                        AuthenticationMessage.INVALID_ROLE_CODE,
+                        ErrorCategory.BAD_REQUEST)))
                 .then();
+    }
+
+    private String resolveRoleCode(RegisterUserCommand command) {
+        return command.roleCode() == null ? DEFAULT_ROLE_CODE : command.roleCode().name();
     }
 
     private Mono<ApplicationUser> buildApplicationUser(Map<String, Object> row) {
@@ -198,7 +208,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
         return findRoles(userId)
                 .map(roles -> applicationUserDataMapper.fromRow(row, roles))
                 .map(applicationUserDataMapper::toDomain)
-                .doOnNext(user -> LOGGER.info(LOG_BUILD_USER, AuthenticationLogSanitizer.maskEmail(user.email()), user.id()));
+                .doOnNext(user -> LOGGER.info(LOG_BUILD_USER, AuthenticationLogSanitizer.maskEmail(user.user().email()), user.user().id()));
     }
 
     private Mono<List<String>> findRoles(UUID userId) {

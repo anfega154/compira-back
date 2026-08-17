@@ -27,17 +27,17 @@ public class AuthenticationResponseMapper {
 
     public ApplicationUserResponse toResponse(ApplicationUser applicationUser) {
         return new ApplicationUserResponse(
-                applicationUser.id(),
+                applicationUser.user().id(),
                 applicationUser.cognitoSub(),
-                applicationUser.email(),
-                applicationUser.firstName(),
-                applicationUser.lastName(),
-                applicationUser.phoneNumber(),
+                applicationUser.user().email(),
+                applicationUser.user().firstName(),
+                applicationUser.user().lastName(),
+                applicationUser.user().phoneNumber(),
                 applicationUser.preferredMfaChannel().name(),
                 applicationUser.status().name(),
                 applicationUser.roles(),
-                applicationUser.createdAt(),
-                applicationUser.updatedAt(),
+                applicationUser.user().createdAt(),
+                applicationUser.user().updatedAt(),
                 applicationUser.lastLoginAt());
     }
 

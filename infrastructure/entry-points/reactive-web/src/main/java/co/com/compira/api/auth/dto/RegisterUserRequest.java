@@ -24,5 +24,7 @@ public record RegisterUserRequest(
         String phoneNumber,
         @NotBlank(message = AuthenticationValidationMessage.MFA_CHANNEL_REQUIRED)
         @Pattern(regexp = "^(EMAIL|SMS)$", message = AuthenticationValidationMessage.MFA_CHANNEL_INVALID)
-        String preferredMfaChannel) {
+        String preferredMfaChannel,
+        @Pattern(regexp = "^(ADMINISTRATOR|COORDINATOR|COLLABORATOR)$", message = AuthenticationValidationMessage.ROLE_CODE_INVALID)
+        String roleCode) {
 }

@@ -13,6 +13,7 @@ public final class AuthenticationValidationMessage {
     public static final String PHONE_NUMBER_INVALID = "El número de teléfono debe estar en formato E.164";
     public static final String MFA_CHANNEL_REQUIRED = "El canal MFA preferido es obligatorio";
     public static final String MFA_CHANNEL_INVALID = "El canal MFA preferido debe ser EMAIL o SMS";
+    public static final String ROLE_CODE_INVALID = "El rol debe ser ADMINISTRATOR, COORDINATOR o COLLABORATOR";
     public static final String SESSION_REQUIRED = "La sesión es obligatoria";
     public static final String CHALLENGE_NAME_REQUIRED = "El nombre del reto es obligatorio";
     public static final String CHALLENGE_NAME_INVALID = "El nombre del reto no es válido";

@@ -17,11 +17,14 @@ import co.com.compira.model.auth.LogoutCommand;
 import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.RegisterUserCommand;
 import co.com.compira.model.auth.RespondAuthenticationChallengeCommand;
+import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.auth.StartPasswordRecoveryCommand;
 import org.springframework.stereotype.Component;
 
 @Component
 public class AuthenticationRequestMapper {
+    private static final RoleCode DEFAULT_ROLE_CODE = RoleCode.COLLABORATOR;
+
     public RegisterUserCommand toCommand(RegisterUserRequest request) {
         return new RegisterUserCommand(
                 request.email(),
@@ -29,7 +32,8 @@ public class AuthenticationRequestMapper {
                 request.firstName(),
                 request.lastName(),
                 request.phoneNumber(),
-                MfaChannel.fromValue(request.preferredMfaChannel()));
+                MfaChannel.fromValue(request.preferredMfaChannel()),
+                resolveRoleCode(request.roleCode()));
     }
 
     public ConfirmUserRegistrationCommand toCommand(ConfirmUserRegistrationRequest request) {
@@ -63,5 +67,9 @@ public class AuthenticationRequestMapper {
 
     public DeleteUserCommand toCommand(DeleteUserRequest request) {
         return new DeleteUserCommand(request.email());
+    }
+
+    private RoleCode resolveRoleCode(String roleCode) {
+        return roleCode == null || roleCode.isBlank() ? DEFAULT_ROLE_CODE : RoleCode.fromValue(roleCode);
     }
 }

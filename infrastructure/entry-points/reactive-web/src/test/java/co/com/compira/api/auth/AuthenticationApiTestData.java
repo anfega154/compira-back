@@ -17,6 +17,8 @@ import co.com.compira.model.auth.AuthenticationTokens;
 import co.com.compira.model.auth.CodeDeliveryDetails;
 import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.PasswordRecoveryResult;
+import co.com.compira.model.auth.RoleCode;
+import co.com.compira.model.user.User;
 import co.com.compira.model.auth.UserRegistrationResult;
 import co.com.compira.model.auth.UserStatus;
 
@@ -35,7 +37,8 @@ public final class AuthenticationApiTestData {
                 "John",
                 "Doe",
                 "+573001112233",
-                "EMAIL");
+                "EMAIL",
+                RoleCode.COLLABORATOR.name());
     }
 
     public static ConfirmUserRegistrationRequest confirmUserRegistrationRequest() {
@@ -86,17 +89,18 @@ public final class AuthenticationApiTestData {
 
     public static ApplicationUser applicationUser() {
         return new ApplicationUser(
-                UUID.fromString("0efdd5b1-c983-4332-980e-30700c8ca6ee"),
+                new User(
+                        UUID.fromString("0efdd5b1-c983-4332-980e-30700c8ca6ee"),
+                        "john.doe@compira.co",
+                        "John",
+                        "Doe",
+                        "+573001112233",
+                        OffsetDateTime.parse("2026-08-16T12:00:00Z"),
+                        OffsetDateTime.parse("2026-08-16T12:10:00Z")),
                 "cognito-sub-123",
-                "john.doe@compira.co",
-                "John",
-                "Doe",
-                "+573001112233",
-                MfaChannel.EMAIL,
                 UserStatus.ACTIVE,
-                List.of("USER"),
-                OffsetDateTime.parse("2026-08-16T12:00:00Z"),
-                OffsetDateTime.parse("2026-08-16T12:10:00Z"),
+                MfaChannel.EMAIL,
+                List.of(RoleCode.COLLABORATOR.name()),
                 OffsetDateTime.parse("2026-08-16T12:10:00Z"));
     }
 

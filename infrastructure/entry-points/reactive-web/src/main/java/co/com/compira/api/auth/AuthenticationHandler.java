@@ -111,7 +111,7 @@ public class AuthenticationHandler {
                 .flatMap(authenticationRequestValidator::validateConfirmRegistrationRequest)
                 .map(authenticationRequestMapper::toCommand)
                 .flatMap(confirmUserRegistrationUseCase::execute)
-                .doOnNext(user -> LOGGER.info(LOG_CONFIRM_SUCCESS, AuthenticationLogSanitizer.maskEmail(user.email()), user.status()))
+                .doOnNext(user -> LOGGER.info(LOG_CONFIRM_SUCCESS, AuthenticationLogSanitizer.maskEmail(user.user().email()), user.status()))
                 .map(authenticationResponseMapper::toResponse)
                 .flatMap(response -> ServerResponse.ok()
                         .contentType(MediaType.APPLICATION_JSON)

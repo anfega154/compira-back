@@ -2,8 +2,10 @@ package co.com.compira.r2dbc.mapper;
 
 import co.com.compira.model.auth.ApplicationUser;
 import co.com.compira.model.auth.MfaChannel;
+import co.com.compira.model.user.User;
 import co.com.compira.model.auth.UserStatus;
 import co.com.compira.r2dbc.data.ApplicationUserData;
+import co.com.compira.r2dbc.data.UserData;
 import org.springframework.stereotype.Component;
 
 import java.time.OffsetDateTime;
@@ -15,33 +17,35 @@ import java.util.UUID;
 public class ApplicationUserDataMapper {
     public ApplicationUserData fromRow(Map<String, Object> row, List<String> roles) {
         return new ApplicationUserData(
-                getUuid(row, "id"),
+                new UserData(
+                        getUuid(row, "id"),
+                        getString(row, "email"),
+                        getString(row, "first_name"),
+                        getString(row, "last_name"),
+                        getString(row, "phone_number"),
+                        getOffsetDateTime(row, "created_at"),
+                        getOffsetDateTime(row, "updated_at")),
                 getString(row, "cognito_sub"),
-                getString(row, "email"),
-                getString(row, "first_name"),
-                getString(row, "last_name"),
-                getString(row, "phone_number"),
                 getString(row, "preferred_mfa_channel") == null ? null : MfaChannel.fromValue(getString(row, "preferred_mfa_channel")),
                 UserStatus.valueOf(getString(row, "status")),
                 roles,
-                getOffsetDateTime(row, "created_at"),
-                getOffsetDateTime(row, "updated_at"),
                 getOffsetDateTime(row, "last_login_at"));
     }
 
     public ApplicationUser toDomain(ApplicationUserData data) {
         return new ApplicationUser(
-                data.id(),
+                new User(
+                        data.user().id(),
+                        data.user().email(),
+                        data.user().firstName(),
+                        data.user().lastName(),
+                        data.user().phoneNumber(),
+                        data.user().createdAt(),
+                        data.user().updatedAt()),
                 data.cognitoSub(),
-                data.email(),
-                data.firstName(),
-                data.lastName(),
-                data.phoneNumber(),
-                data.preferredMfaChannel(),
                 data.status(),
+                data.preferredMfaChannel(),
                 data.roles(),
-                data.createdAt(),
-                data.updatedAt(),
                 data.lastLoginAt());
     }
 

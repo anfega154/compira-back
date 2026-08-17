@@ -6,5 +6,6 @@ public record RegisterUserCommand(
         String firstName,
         String lastName,
         String phoneNumber,
-        MfaChannel preferredMfaChannel) {
+        MfaChannel preferredMfaChannel,
+        RoleCode roleCode) {
 }

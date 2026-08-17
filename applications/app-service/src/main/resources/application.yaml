@@ -3,10 +3,21 @@ server:
 spring:
   application:
     name: "compira-back"
+  datasource:
+    host: ${DB_HOST:localhost}
+    port: ${DB_PORT:5432}
+    database: ${DB_NAME:compira}
+    schema: ${DB_SCHEMA:public}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
   devtools:
     add-properties: false
   profiles:
     include: null
+  liquibase:
+    enabled: ${LIQUIBASE_ENABLED:true}
+    change-log: classpath:db/db.changelog-master.yaml
 springdoc:
   swagger-ui.path: "/v3/swagger-ui.html"
   api-docs.path: "/v3/api-docs"

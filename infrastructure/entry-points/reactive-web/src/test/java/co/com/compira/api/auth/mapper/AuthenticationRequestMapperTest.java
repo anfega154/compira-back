@@ -1,8 +1,10 @@
 package co.com.compira.api.auth.mapper;
 
 import co.com.compira.api.auth.AuthenticationApiTestData;
+import co.com.compira.api.auth.dto.RegisterUserRequest;
 import co.com.compira.model.auth.AuthenticationChallengeName;
 import co.com.compira.model.auth.MfaChannel;
+import co.com.compira.model.auth.RoleCode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,6 +18,21 @@ class AuthenticationRequestMapperTest {
 
         assertEquals("john.doe@compira.co", command.email());
         assertEquals(MfaChannel.EMAIL, command.preferredMfaChannel());
+        assertEquals(RoleCode.COLLABORATOR, command.roleCode());
+    }
+
+    @Test
+    void shouldDefaultRegisterRoleToCollaboratorWhenRoleIsMissing() {
+        var command = mapper.toCommand(new RegisterUserRequest(
+                "john.doe@compira.co",
+                "Password123!",
+                "John",
+                "Doe",
+                "+573001112233",
+                "EMAIL",
+                null));
+
+        assertEquals(RoleCode.COLLABORATOR, command.roleCode());
     }
 
     @Test

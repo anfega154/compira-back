@@ -18,6 +18,7 @@ public final class AuthenticationMessage {
     public static final String UNSUPPORTED_CHALLENGE = "El reto solicitado no está soportado por este backend";
     public static final String TOO_MANY_REQUESTS = "Se recibieron demasiadas solicitudes. Inténtalo nuevamente en unos minutos";
     public static final String INVALID_REQUEST = "La solicitud contiene datos inválidos o incompletos";
+    public static final String INVALID_ROLE_CODE = "El rol solicitado no es válido para el registro";
     public static final String IDENTITY_PROVIDER_CONFIGURATION_ERROR = "La configuración de Cognito no es válida para esta operación. Revisa SES, MFA y el cliente de la aplicación";
     public static final String GENERIC_AUTHENTICATION_ERROR = "Ocurrió un error inesperado durante el proceso de autenticación";
 

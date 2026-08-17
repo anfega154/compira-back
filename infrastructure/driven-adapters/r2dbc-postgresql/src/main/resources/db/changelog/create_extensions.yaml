@@ -1,0 +1,11 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-extensions
+      author: compira
+      changes:
+        - sql:
+            dbms: postgresql
+            splitStatements: true
+            sql: |
+              CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+              CREATE EXTENSION IF NOT EXISTS citext;

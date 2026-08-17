@@ -1,6 +1,5 @@
 package co.com.compira.usecase.registeruser;
 
-import co.com.compira.model.auth.ApplicationUser;
 import co.com.compira.model.auth.RegisterUserCommand;
 import co.com.compira.model.auth.UserRegistrationResult;
 import co.com.compira.model.auth.gateways.ApplicationUserRepositoryGateway;
@@ -20,7 +19,7 @@ public class RegisterUserUseCase {
     public Mono<UserRegistrationResult> execute(RegisterUserCommand command) {
         return authenticationGateway.registerUser(command)
                 .flatMap(result -> applicationUserRepositoryGateway.createPendingUser(command, result.cognitoSub())
-                        .map(ApplicationUser::cognitoSub)
+                        .map(applicationUser -> applicationUser.user().id())
                         .thenReturn(result)
                         .onErrorResume(error -> authenticationGateway.deleteUser(command.email())
                                 .then(Mono.error(error))));
