@@ -6,6 +6,7 @@ import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
+import co.com.compira.api.auth.dto.ResendConfirmationCodeRequest;
 import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.dto.StartPasswordRecoveryRequest;
 import co.com.compira.model.auth.AuthenticationChallengeName;
@@ -16,6 +17,7 @@ import co.com.compira.model.auth.LoginCommand;
 import co.com.compira.model.auth.LogoutCommand;
 import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.RegisterUserCommand;
+import co.com.compira.model.auth.ResendConfirmationCodeCommand;
 import co.com.compira.model.auth.RespondAuthenticationChallengeCommand;
 import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.auth.StartPasswordRecoveryCommand;
@@ -67,6 +69,10 @@ public class AuthenticationRequestMapper {
 
     public DeleteUserCommand toCommand(DeleteUserRequest request) {
         return new DeleteUserCommand(request.email());
+    }
+
+    public ResendConfirmationCodeCommand toCommand(ResendConfirmationCodeRequest request) {
+        return new ResendConfirmationCodeCommand(request.email());
     }
 
     private RoleCode resolveRoleCode(String roleCode) {

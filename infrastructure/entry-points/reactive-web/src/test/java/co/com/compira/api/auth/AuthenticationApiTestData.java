@@ -6,6 +6,7 @@ import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
+import co.com.compira.api.auth.dto.ResendConfirmationCodeRequest;
 import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.dto.StartPasswordRecoveryRequest;
 import co.com.compira.model.auth.ApplicationUser;
@@ -17,6 +18,7 @@ import co.com.compira.model.auth.AuthenticationTokens;
 import co.com.compira.model.auth.CodeDeliveryDetails;
 import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.PasswordRecoveryResult;
+import co.com.compira.model.auth.ResendConfirmationCodeResult;
 import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.user.User;
 import co.com.compira.model.auth.UserRegistrationResult;
@@ -81,6 +83,14 @@ public final class AuthenticationApiTestData {
 
     public static DeleteUserRequest deleteUserRequest() {
         return new DeleteUserRequest("john.doe@compira.co");
+    }
+
+    public static ResendConfirmationCodeRequest resendConfirmationCodeRequest() {
+        return new ResendConfirmationCodeRequest("john.doe@compira.co");
+    }
+
+    public static ResendConfirmationCodeResult resendConfirmationCodeResult() {
+        return new ResendConfirmationCodeResult(codeDeliveryDetails());
     }
 
     public static UserRegistrationResult userRegistrationResult() {

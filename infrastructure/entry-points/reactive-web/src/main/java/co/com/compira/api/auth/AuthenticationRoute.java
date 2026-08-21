@@ -6,6 +6,7 @@ public final class AuthenticationRoute {
     public static final String AUTH_BASE = "/auth";
     public static final String REGISTER = "/register";
     public static final String REGISTER_CONFIRMATION = "/register/confirm";
+    public static final String RESEND_CONFIRMATION_CODE = "/register/resend-code";
     public static final String LOGIN = "/login";
     public static final String LOGOUT = "/logout";
     public static final String LOGIN_CHALLENGE = "/login/challenge";

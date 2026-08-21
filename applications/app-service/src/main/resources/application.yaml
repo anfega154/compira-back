@@ -4,19 +4,19 @@ spring:
   application:
     name: "compira-back"
   datasource:
-    host: ${DB_HOST:localhost}
-    port: ${DB_PORT:5432}
-    database: ${DB_NAME:compira}
-    schema: ${DB_SCHEMA:public}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    host: ${DB_HOST}
+    port: ${DB_PORT}
+    database: ${DB_NAME}
+    schema: ${DB_SCHEMA}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   devtools:
     add-properties: false
   profiles:
     include: null
   liquibase:
-    enabled: ${LIQUIBASE_ENABLED:true}
+    enabled: ${LIQUIBASE_ENABLED}
     change-log: classpath:db/db.changelog-master.yaml
 springdoc:
   swagger-ui.path: "/v3/swagger-ui.html"
@@ -33,15 +33,15 @@ management:
         enabled: true
 adapters:
   r2dbc:
-    host: ${DB_HOST:localhost}
-    port: ${DB_PORT:5432}
-    database: ${DB_NAME:compira}
-    schema: ${DB_SCHEMA:public}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    host: ${DB_HOST}
+    port: ${DB_PORT}
+    database: ${DB_NAME}
+    schema: ${DB_SCHEMA}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
   cognito:
-    region: ${COGNITO_REGION:us-east-1}
-    user-pool-id: ${COGNITO_USER_POOL_ID:us-east-1_VVpUYZzNy}
-    client-id: ${COGNITO_CLIENT_ID:6lasp5po0eu1gb5frdknoqgaqk}
+    region: ${COGNITO_REGION}
+    user-pool-id: ${COGNITO_USER_POOL_ID}
+    client-id: ${COGNITO_CLIENT_ID}
 cors:
   allowed-origins: "http://localhost:5173,http://localhost:8080"

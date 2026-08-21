@@ -15,6 +15,8 @@ import co.com.compira.model.auth.LogoutCommand;
 import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.PasswordRecoveryResult;
 import co.com.compira.model.auth.RegisterUserCommand;
+import co.com.compira.model.auth.ResendConfirmationCodeCommand;
+import co.com.compira.model.auth.ResendConfirmationCodeResult;
 import co.com.compira.model.auth.RespondAuthenticationChallengeCommand;
 import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.auth.StartPasswordRecoveryCommand;
@@ -72,6 +74,14 @@ public final class AuthenticationTestData {
 
     public static DeleteUserCommand deleteUserCommand() {
         return new DeleteUserCommand("john.doe@compira.co");
+    }
+
+    public static ResendConfirmationCodeCommand resendConfirmationCodeCommand() {
+        return new ResendConfirmationCodeCommand("john.doe@compira.co");
+    }
+
+    public static ResendConfirmationCodeResult resendConfirmationCodeResult() {
+        return new ResendConfirmationCodeResult(codeDeliveryDetails());
     }
 
     public static UserRegistrationResult userRegistrationResult() {

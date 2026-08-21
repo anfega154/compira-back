@@ -8,6 +8,8 @@ import co.com.compira.model.auth.LogoutCommand;
 import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.PasswordRecoveryResult;
 import co.com.compira.model.auth.RegisterUserCommand;
+import co.com.compira.model.auth.ResendConfirmationCodeCommand;
+import co.com.compira.model.auth.ResendConfirmationCodeResult;
 import co.com.compira.model.auth.RespondAuthenticationChallengeCommand;
 import co.com.compira.model.auth.StartPasswordRecoveryCommand;
 import co.com.compira.model.auth.UserRegistrationResult;
@@ -29,4 +31,6 @@ public interface AuthenticationGateway {
     Mono<PasswordRecoveryResult> startPasswordRecovery(StartPasswordRecoveryCommand command);
 
     Mono<Void> confirmPasswordRecovery(ConfirmPasswordRecoveryCommand command);
+
+    Mono<ResendConfirmationCodeResult> resendConfirmationCode(ResendConfirmationCodeCommand command);
 }

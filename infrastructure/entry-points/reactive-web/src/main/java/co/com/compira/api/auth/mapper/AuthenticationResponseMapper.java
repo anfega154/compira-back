@@ -6,6 +6,7 @@ import co.com.compira.api.auth.dto.AuthenticationResponse;
 import co.com.compira.api.auth.dto.AuthenticationTokenResponse;
 import co.com.compira.api.auth.dto.CodeDeliveryDetailsResponse;
 import co.com.compira.api.auth.dto.PasswordRecoveryResponse;
+import co.com.compira.api.auth.dto.ResendConfirmationCodeResponse;
 import co.com.compira.api.auth.dto.UserRegistrationResponse;
 import co.com.compira.model.auth.ApplicationUser;
 import co.com.compira.model.auth.AuthenticationChallenge;
@@ -13,6 +14,7 @@ import co.com.compira.model.auth.AuthenticationResult;
 import co.com.compira.model.auth.AuthenticationTokens;
 import co.com.compira.model.auth.CodeDeliveryDetails;
 import co.com.compira.model.auth.PasswordRecoveryResult;
+import co.com.compira.model.auth.ResendConfirmationCodeResult;
 import co.com.compira.model.auth.UserRegistrationResult;
 import org.springframework.stereotype.Component;
 
@@ -51,6 +53,10 @@ public class AuthenticationResponseMapper {
 
     public PasswordRecoveryResponse toResponse(PasswordRecoveryResult result) {
         return new PasswordRecoveryResponse(mapCodeDeliveryDetails(result.codeDeliveryDetails()));
+    }
+
+    public ResendConfirmationCodeResponse toResponse(ResendConfirmationCodeResult result) {
+        return new ResendConfirmationCodeResponse(mapCodeDeliveryDetails(result.codeDeliveryDetails()));
     }
 
     private AuthenticationTokenResponse mapTokens(AuthenticationTokens tokens) {

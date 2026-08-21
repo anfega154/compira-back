@@ -5,6 +5,7 @@ import co.com.compira.api.auth.AuthenticationRoute;
 import co.com.compira.api.auth.dto.ApplicationUserResponse;
 import co.com.compira.api.auth.dto.AuthenticationResponse;
 import co.com.compira.api.auth.dto.PasswordRecoveryResponse;
+import co.com.compira.api.auth.dto.ResendConfirmationCodeResponse;
 import co.com.compira.api.auth.dto.UserRegistrationResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -124,6 +125,21 @@ public class AuthRouterRest {
                     )
             ),
             @RouterOperation(
+                    path = "/api/v1/auth/register/resend-code",
+                    beanClass = AuthenticationHandler.class,
+                    beanMethod = "resendConfirmationCode",
+                    method = RequestMethod.POST,
+                    operation = @Operation(
+                            summary = "Reenviar código de confirmación de registro",
+                            responses = {
+                                    @ApiResponse(responseCode = "200", description = "Código reenviado", content = @Content(schema = @Schema(implementation = ResendConfirmationCodeResponse.class))),
+                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+                                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                                    @ApiResponse(responseCode = "429", description = "Demasiadas solicitudes")
+                            }
+                    )
+            ),
+            @RouterOperation(
                     path = "/api/v2/auth/register",
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "registerUser",
@@ -170,6 +186,12 @@ public class AuthRouterRest {
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "deleteUser",
                     method = RequestMethod.DELETE
+            ),
+            @RouterOperation(
+                    path = "/api/v2/auth/register/resend-code",
+                    beanClass = AuthenticationHandler.class,
+                    beanMethod = "resendConfirmationCode",
+                    method = RequestMethod.POST
             )
     })
     @Bean
@@ -179,6 +201,7 @@ public class AuthRouterRest {
                         .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
                                 .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
                                 .POST(AuthenticationRoute.REGISTER_CONFIRMATION, authenticationHandler::confirmUserRegistration)
+                                .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                                 .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)
                                 .POST(AuthenticationRoute.LOGOUT, authenticationHandler::logout)
                                 .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
@@ -189,6 +212,7 @@ public class AuthRouterRest {
                         .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
                                 .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
                                 .POST(AuthenticationRoute.REGISTER_CONFIRMATION, authenticationHandler::confirmUserRegistration)
+                                .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                                 .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)
                                 .POST(AuthenticationRoute.LOGOUT, authenticationHandler::logout)
                                 .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)

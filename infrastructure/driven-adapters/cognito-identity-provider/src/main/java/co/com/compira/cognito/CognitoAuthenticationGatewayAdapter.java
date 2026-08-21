@@ -13,6 +13,8 @@ import co.com.compira.model.auth.LogoutCommand;
 import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.PasswordRecoveryResult;
 import co.com.compira.model.auth.RegisterUserCommand;
+import co.com.compira.model.auth.ResendConfirmationCodeCommand;
+import co.com.compira.model.auth.ResendConfirmationCodeResult;
 import co.com.compira.model.auth.RespondAuthenticationChallengeCommand;
 import co.com.compira.model.auth.StartPasswordRecoveryCommand;
 import co.com.compira.model.auth.UserRegistrationResult;
@@ -38,6 +40,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.ExpiredCode
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ForgotPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.GlobalSignOutRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.ResendConfirmationCodeRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidPasswordException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.InvalidParameterException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.LimitExceededException;
@@ -67,6 +70,7 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
     private static final String OPERATION_RESPOND_CHALLENGE = "cognito-respond-to-auth-challenge";
     private static final String OPERATION_START_PASSWORD_RECOVERY = "cognito-forgot-password";
     private static final String OPERATION_CONFIRM_PASSWORD_RECOVERY = "cognito-confirm-forgot-password";
+    private static final String OPERATION_RESEND_CONFIRMATION_CODE = "cognito-resend-confirmation-code";
     private static final String LOG_OPERATION_START = "Invocando operación Cognito. operation={} principal={} detalle={}";
     private static final String LOG_OPERATION_SUCCESS = "Operación Cognito completada. operation={} principal={} detalle={}";
     private static final String LOG_OPERATION_FAILURE = "Operación Cognito falló. operation={} principal={} awsType={} awsMessage={}";
@@ -256,6 +260,25 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_CONFIRM_PASSWORD_RECOVERY, maskedEmail, "confirmado"))
                 .then()
                 .onErrorMap(error -> mapException(OPERATION_CONFIRM_PASSWORD_RECOVERY, maskedEmail, error));
+    }
+
+    @Override
+    public Mono<ResendConfirmationCodeResult> resendConfirmationCode(ResendConfirmationCodeCommand command) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(command.email());
+        ResendConfirmationCodeRequest request = ResendConfirmationCodeRequest.builder()
+                .clientId(properties.clientId())
+                .username(command.email())
+                .build();
+
+        LOGGER.info(LOG_OPERATION_START, OPERATION_RESEND_CONFIRMATION_CODE, maskedEmail, properties.clientId());
+        return Mono.fromFuture(cognitoIdentityProviderAsyncClient.resendConfirmationCode(request))
+                .map(response -> new ResendConfirmationCodeResult(mapCodeDeliveryDetails(response.codeDeliveryDetails())))
+                .doOnNext(result -> LOGGER.info(
+                        LOG_OPERATION_SUCCESS,
+                        OPERATION_RESEND_CONFIRMATION_CODE,
+                        maskedEmail,
+                        result.codeDeliveryDetails() != null ? result.codeDeliveryDetails().deliveryMedium() : "<sin-medio>"))
+                .onErrorMap(error -> mapException(OPERATION_RESEND_CONFIRMATION_CODE, maskedEmail, error));
     }
 
     private List<AttributeType> buildUserAttributes(RegisterUserCommand command) {

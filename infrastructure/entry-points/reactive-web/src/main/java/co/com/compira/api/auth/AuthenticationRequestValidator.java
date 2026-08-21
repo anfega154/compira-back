@@ -6,6 +6,7 @@ import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
+import co.com.compira.api.auth.dto.ResendConfirmationCodeRequest;
 import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.dto.StartPasswordRecoveryRequest;
 import co.com.compira.model.auth.AuthenticationChallengeName;
@@ -79,6 +80,10 @@ public class AuthenticationRequestValidator {
     }
 
     public Mono<DeleteUserRequest> validateDeleteUserRequest(DeleteUserRequest request) {
+        return validate(request);
+    }
+
+    public Mono<ResendConfirmationCodeRequest> validateResendConfirmationCodeRequest(ResendConfirmationCodeRequest request) {
         return validate(request);
     }
 
