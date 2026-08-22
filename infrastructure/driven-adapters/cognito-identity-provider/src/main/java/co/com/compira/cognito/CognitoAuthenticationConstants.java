@@ -11,6 +11,7 @@ public final class CognitoAuthenticationConstants {
     public static final String EMAIL_OTP_CODE_PARAMETER = "EMAIL_OTP_CODE";
     public static final String SMS_MFA_CODE_PARAMETER = "SMS_MFA_CODE";
     public static final String SOFTWARE_TOKEN_MFA_CODE_PARAMETER = "SOFTWARE_TOKEN_MFA_CODE";
+    public static final String NEW_PASSWORD_PARAMETER = "NEW_PASSWORD";
     public static final String CHALLENGE_DELIVERY_DESTINATION_PARAMETER = "CODE_DELIVERY_DESTINATION";
     public static final String CHALLENGE_DELIVERY_MEDIUM_PARAMETER = "CODE_DELIVERY_DELIVERY_MEDIUM";
     public static final String MFA_OPTIONS_PARAMETER = "MFAS_CAN_CHOOSE";

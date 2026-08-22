@@ -16,6 +16,7 @@ public final class AuthenticationMessage {
     public static final String MFA_CHANNEL_REQUIRED = "Debes indicar el canal MFA cuando el reto es SELECT_MFA_TYPE";
     public static final String CHALLENGE_CODE_REQUIRED = "Debes enviar el código de verificación para completar el reto seleccionado";
     public static final String UNSUPPORTED_CHALLENGE = "El reto solicitado no está soportado por este backend";
+    public static final String NEW_PASSWORD_REQUIRED = "Debes enviar la nueva contraseña para completar el cambio obligatorio";
     public static final String TOO_MANY_REQUESTS = "Se recibieron demasiadas solicitudes. Inténtalo nuevamente en unos minutos";
     public static final String INVALID_REQUEST = "La solicitud contiene datos inválidos o incompletos";
     public static final String INVALID_ROLE_CODE = "El rol solicitado no es válido para el registro";

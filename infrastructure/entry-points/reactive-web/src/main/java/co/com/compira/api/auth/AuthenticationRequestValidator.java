@@ -64,9 +64,11 @@ public class AuthenticationRequestValidator {
                                 AuthenticationErrorCode.INVALID_CHALLENGE_REQUEST,
                                 AuthenticationMessage.CHALLENGE_CODE_REQUIRED))
                                 : Mono.just(validRequest);
-                        case NEW_PASSWORD_REQUIRED -> Mono.error(buildBadRequestException(
-                                AuthenticationErrorCode.UNSUPPORTED_CHALLENGE,
-                                AuthenticationMessage.UNSUPPORTED_CHALLENGE));
+                        case NEW_PASSWORD_REQUIRED -> validRequest.newPassword() == null || validRequest.newPassword().isBlank()
+                                ? Mono.error(buildBadRequestException(
+                                AuthenticationErrorCode.INVALID_CHALLENGE_REQUEST,
+                                AuthenticationMessage.NEW_PASSWORD_REQUIRED))
+                                : Mono.just(validRequest);
                     };
                 });
     }

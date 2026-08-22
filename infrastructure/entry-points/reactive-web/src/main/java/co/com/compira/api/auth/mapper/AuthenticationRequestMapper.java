@@ -56,7 +56,8 @@ public class AuthenticationRequestMapper {
                 request.session(),
                 AuthenticationChallengeName.fromValue(request.challengeName()),
                 request.code(),
-                request.mfaChannel() == null || request.mfaChannel().isBlank() ? null : MfaChannel.fromValue(request.mfaChannel()));
+                request.mfaChannel() == null || request.mfaChannel().isBlank() ? null : MfaChannel.fromValue(request.mfaChannel()),
+                request.newPassword());
     }
 
     public StartPasswordRecoveryCommand toCommand(StartPasswordRecoveryRequest request) {

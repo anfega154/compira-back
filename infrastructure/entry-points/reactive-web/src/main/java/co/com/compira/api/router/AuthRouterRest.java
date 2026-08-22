@@ -2,7 +2,6 @@ package co.com.compira.api.router;
 
 import co.com.compira.api.auth.AuthenticationHandler;
 import co.com.compira.api.auth.AuthenticationRoute;
-import co.com.compira.api.auth.dto.ApplicationUserResponse;
 import co.com.compira.api.auth.dto.AuthenticationResponse;
 import co.com.compira.api.auth.dto.PasswordRecoveryResponse;
 import co.com.compira.api.auth.dto.ResendConfirmationCodeResponse;
@@ -29,23 +28,10 @@ public class AuthRouterRest {
                     beanMethod = "registerUser",
                     method = RequestMethod.POST,
                     operation = @Operation(
-                            summary = "Registrar un usuario",
+                            summary = "Registrar un usuario (solo administrador)",
                             responses = {
                                     @ApiResponse(responseCode = "201", description = "Usuario registrado", content = @Content(schema = @Schema(implementation = UserRegistrationResponse.class))),
                                     @ApiResponse(responseCode = "400", description = "Solicitud inválida")
-                            }
-                    )
-            ),
-            @RouterOperation(
-                    path = "/api/v1/auth/register/confirm",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "confirmUserRegistration",
-                    method = RequestMethod.POST,
-                    operation = @Operation(
-                            summary = "Confirmar registro de usuario",
-                            responses = {
-                                    @ApiResponse(responseCode = "200", description = "Usuario confirmado", content = @Content(schema = @Schema(implementation = ApplicationUserResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Código inválido")
                             }
                     )
             ),
@@ -80,10 +66,25 @@ public class AuthRouterRest {
                     beanMethod = "respondAuthenticationChallenge",
                     method = RequestMethod.POST,
                     operation = @Operation(
-                            summary = "Responder un reto de autenticación",
+                            summary = "Responder un reto de autenticación (OTP o cambio de contraseña obligatorio)",
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Resultado de autenticación", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
                                     @ApiResponse(responseCode = "400", description = "Solicitud del reto inválida")
+                            }
+                    )
+            ),
+            @RouterOperation(
+                    path = "/api/v1/auth/login/resend-code",
+                    beanClass = AuthenticationHandler.class,
+                    beanMethod = "resendConfirmationCode",
+                    method = RequestMethod.POST,
+                    operation = @Operation(
+                            summary = "Reenviar código OTP de inicio de sesión",
+                            responses = {
+                                    @ApiResponse(responseCode = "200", description = "Código reenviado", content = @Content(schema = @Schema(implementation = ResendConfirmationCodeResponse.class))),
+                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+                                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                                    @ApiResponse(responseCode = "429", description = "Demasiadas solicitudes")
                             }
                     )
             ),
@@ -125,30 +126,9 @@ public class AuthRouterRest {
                     )
             ),
             @RouterOperation(
-                    path = "/api/v1/auth/register/resend-code",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "resendConfirmationCode",
-                    method = RequestMethod.POST,
-                    operation = @Operation(
-                            summary = "Reenviar código de confirmación de registro",
-                            responses = {
-                                    @ApiResponse(responseCode = "200", description = "Código reenviado", content = @Content(schema = @Schema(implementation = ResendConfirmationCodeResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
-                                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
-                                    @ApiResponse(responseCode = "429", description = "Demasiadas solicitudes")
-                            }
-                    )
-            ),
-            @RouterOperation(
                     path = "/api/v2/auth/register",
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "registerUser",
-                    method = RequestMethod.POST
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/register/confirm",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "confirmUserRegistration",
                     method = RequestMethod.POST
             ),
             @RouterOperation(
@@ -170,6 +150,12 @@ public class AuthRouterRest {
                     method = RequestMethod.POST
             ),
             @RouterOperation(
+                    path = "/api/v2/auth/login/resend-code",
+                    beanClass = AuthenticationHandler.class,
+                    beanMethod = "resendConfirmationCode",
+                    method = RequestMethod.POST
+            ),
+            @RouterOperation(
                     path = "/api/v2/auth/password-recovery",
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "startPasswordRecovery",
@@ -186,12 +172,6 @@ public class AuthRouterRest {
                     beanClass = AuthenticationHandler.class,
                     beanMethod = "deleteUser",
                     method = RequestMethod.DELETE
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/register/resend-code",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "resendConfirmationCode",
-                    method = RequestMethod.POST
             )
     })
     @Bean
@@ -200,22 +180,20 @@ public class AuthRouterRest {
                 .path(AuthenticationRoute.API_V1, builder -> builder
                         .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
                                 .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
-                                .POST(AuthenticationRoute.REGISTER_CONFIRMATION, authenticationHandler::confirmUserRegistration)
-                                .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                                 .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)
                                 .POST(AuthenticationRoute.LOGOUT, authenticationHandler::logout)
                                 .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
+                                .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                                 .POST(AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
                                 .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
                                 .DELETE(AuthenticationRoute.USERS, authenticationHandler::deleteUser)))
                 .path(AuthenticationRoute.API_V2, builder -> builder
                         .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
                                 .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
-                                .POST(AuthenticationRoute.REGISTER_CONFIRMATION, authenticationHandler::confirmUserRegistration)
-                                .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                                 .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)
                                 .POST(AuthenticationRoute.LOGOUT, authenticationHandler::logout)
                                 .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
+                                .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                                 .POST(AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
                                 .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
                                 .DELETE(AuthenticationRoute.USERS, authenticationHandler::deleteUser)))

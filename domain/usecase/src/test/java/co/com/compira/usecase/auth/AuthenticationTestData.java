@@ -61,6 +61,7 @@ public final class AuthenticationTestData {
                 "session-token",
                 AuthenticationChallengeName.EMAIL_OTP,
                 "654321",
+                null,
                 null);
     }
 

@@ -4,6 +4,7 @@ import co.com.compira.api.auth.AuthenticationValidationMessage;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 public record RespondAuthenticationChallengeRequest(
         @NotBlank(message = AuthenticationValidationMessage.EMAIL_REQUIRED)
@@ -17,5 +18,7 @@ public record RespondAuthenticationChallengeRequest(
         String challengeName,
         String code,
         @Pattern(regexp = "^(EMAIL|SMS)?$", message = AuthenticationValidationMessage.MFA_CHANNEL_INVALID)
-        String mfaChannel) {
+        String mfaChannel,
+        @Size(min = 8, max = 128, message = AuthenticationValidationMessage.NEW_PASSWORD_LENGTH)
+        String newPassword) {
 }

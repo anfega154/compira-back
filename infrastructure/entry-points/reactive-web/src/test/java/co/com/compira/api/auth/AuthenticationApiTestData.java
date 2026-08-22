@@ -61,6 +61,7 @@ public final class AuthenticationApiTestData {
                 "challenge-session",
                 "EMAIL_OTP",
                 "654321",
+                null,
                 null);
     }
 
@@ -70,7 +71,8 @@ public final class AuthenticationApiTestData {
                 "challenge-session",
                 "SELECT_MFA_TYPE",
                 null,
-                "EMAIL");
+                "EMAIL",
+                null);
     }
 
     public static StartPasswordRecoveryRequest startPasswordRecoveryRequest() {

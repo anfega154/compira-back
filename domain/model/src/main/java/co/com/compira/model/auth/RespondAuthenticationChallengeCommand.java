@@ -5,5 +5,6 @@ public record RespondAuthenticationChallengeCommand(
         String session,
         AuthenticationChallengeName challengeName,
         String code,
-        MfaChannel mfaChannel) {
+        MfaChannel mfaChannel,
+        String newPassword) {
 }

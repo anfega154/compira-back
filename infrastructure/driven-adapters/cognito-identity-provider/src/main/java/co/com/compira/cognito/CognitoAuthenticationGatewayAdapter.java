@@ -303,10 +303,9 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
             case SOFTWARE_TOKEN_MFA -> Map.of(
                     CognitoAuthenticationConstants.USERNAME_PARAMETER, command.username(),
                     CognitoAuthenticationConstants.SOFTWARE_TOKEN_MFA_CODE_PARAMETER, command.code());
-            case NEW_PASSWORD_REQUIRED -> throw new CompiraException(
-                    AuthenticationErrorCode.UNSUPPORTED_CHALLENGE,
-                    AuthenticationMessage.UNSUPPORTED_CHALLENGE,
-                    ErrorCategory.BAD_REQUEST);
+            case NEW_PASSWORD_REQUIRED -> Map.of(
+                    CognitoAuthenticationConstants.USERNAME_PARAMETER, command.username(),
+                    CognitoAuthenticationConstants.NEW_PASSWORD_PARAMETER, command.newPassword());
         };
     }
 
