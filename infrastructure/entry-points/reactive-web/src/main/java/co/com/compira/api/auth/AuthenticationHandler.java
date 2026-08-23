@@ -1,7 +1,6 @@
 package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
-import co.com.compira.api.auth.dto.ConfirmUserRegistrationRequest;
 import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
@@ -13,7 +12,6 @@ import co.com.compira.model.auth.AuthenticationLogSanitizer;
 import co.com.compira.api.auth.mapper.AuthenticationRequestMapper;
 import co.com.compira.api.auth.mapper.AuthenticationResponseMapper;
 import co.com.compira.usecase.confirmpasswordrecovery.ConfirmPasswordRecoveryUseCase;
-import co.com.compira.usecase.confirmuserregistration.ConfirmUserRegistrationUseCase;
 import co.com.compira.usecase.deleteuser.DeleteUserUseCase;
 import co.com.compira.usecase.login.LoginUseCase;
 import co.com.compira.usecase.logout.LogoutUseCase;
@@ -34,9 +32,7 @@ import reactor.core.publisher.Mono;
 public class AuthenticationHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationHandler.class);
     private static final String LOG_REGISTER_REQUEST = "Inicio solicitud de registro. email={}";
-    private static final String LOG_REGISTER_SUCCESS = "Registro procesado correctamente. email={} cognitoSub={} confirmado={}";
-    private static final String LOG_CONFIRM_REQUEST = "Inicio confirmación de registro. email={}";
-    private static final String LOG_CONFIRM_SUCCESS = "Confirmación de registro completada. email={} estado={}";
+    private static final String LOG_REGISTER_SUCCESS = "Registro procesado correctamente. email={} cognitoSub={} status={}";
     private static final String LOG_LOGIN_REQUEST = "Inicio autenticación. email={}";
     private static final String LOG_LOGIN_SUCCESS = "Autenticación procesada. email={} resultado={}";
     private static final String LOG_LOGOUT_REQUEST = "Inicio cierre de sesión. accessToken={}";
@@ -53,7 +49,6 @@ public class AuthenticationHandler {
     private static final String LOG_RESEND_CODE_SUCCESS = "Reenvío de código completado. email={} medio={}";
 
     private final RegisterUserUseCase registerUserUseCase;
-    private final ConfirmUserRegistrationUseCase confirmUserRegistrationUseCase;
     private final LoginUseCase loginUseCase;
     private final LogoutUseCase logoutUseCase;
     private final RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase;
@@ -67,7 +62,6 @@ public class AuthenticationHandler {
     private final AuthenticationErrorHandler authenticationErrorHandler;
 
     public AuthenticationHandler(RegisterUserUseCase registerUserUseCase,
-                                 ConfirmUserRegistrationUseCase confirmUserRegistrationUseCase,
                                  LoginUseCase loginUseCase,
                                  LogoutUseCase logoutUseCase,
                                  RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase,
@@ -80,7 +74,6 @@ public class AuthenticationHandler {
                                  AuthenticationResponseMapper authenticationResponseMapper,
                                  AuthenticationErrorHandler authenticationErrorHandler) {
         this.registerUserUseCase = registerUserUseCase;
-        this.confirmUserRegistrationUseCase = confirmUserRegistrationUseCase;
         this.loginUseCase = loginUseCase;
         this.logoutUseCase = logoutUseCase;
         this.respondAuthenticationChallengeUseCase = respondAuthenticationChallengeUseCase;
@@ -104,25 +97,11 @@ public class AuthenticationHandler {
                                 LOG_REGISTER_SUCCESS,
                                 AuthenticationLogSanitizer.maskEmail(request.email()),
                                 response.cognitoSub(),
-                                response.userConfirmed()))
+                                response.userStatus()))
                         .map(authenticationResponseMapper::toResponse)
                         .flatMap(response -> ServerResponse.status(HttpStatus.CREATED)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .bodyValue(response)))
-                .onErrorResume(authenticationErrorHandler::handle);
-    }
-
-    public Mono<ServerResponse> confirmUserRegistration(ServerRequest serverRequest) {
-        return serverRequest.bodyToMono(ConfirmUserRegistrationRequest.class)
-                .doOnNext(request -> LOGGER.info(LOG_CONFIRM_REQUEST, AuthenticationLogSanitizer.maskEmail(request.email())))
-                .flatMap(authenticationRequestValidator::validateConfirmRegistrationRequest)
-                .map(authenticationRequestMapper::toCommand)
-                .flatMap(confirmUserRegistrationUseCase::execute)
-                .doOnNext(user -> LOGGER.info(LOG_CONFIRM_SUCCESS, AuthenticationLogSanitizer.maskEmail(user.user().email()), user.status()))
-                .map(authenticationResponseMapper::toResponse)
-                .flatMap(response -> ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(response))
                 .onErrorResume(authenticationErrorHandler::handle);
     }
 

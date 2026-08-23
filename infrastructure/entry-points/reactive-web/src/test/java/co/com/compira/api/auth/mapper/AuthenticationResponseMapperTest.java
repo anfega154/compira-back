@@ -22,6 +22,7 @@ class AuthenticationResponseMapperTest {
         var response = mapper.toResponse(AuthenticationApiTestData.userRegistrationResult());
 
         assertEquals("cognito-sub-123", response.cognitoSub());
-        assertEquals("EMAIL", response.codeDeliveryDetails().deliveryMedium());
+        assertEquals("john.doe@compira.co", response.username());
+        assertEquals("FORCE_CHANGE_PASSWORD", response.userStatus());
     }
 }

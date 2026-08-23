@@ -1,7 +1,6 @@
 package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
-import co.com.compira.api.auth.dto.ConfirmUserRegistrationRequest;
 import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
@@ -41,10 +40,6 @@ public final class AuthenticationApiTestData {
                 "+573001112233",
                 "EMAIL",
                 RoleCode.COLLABORATOR.name());
-    }
-
-    public static ConfirmUserRegistrationRequest confirmUserRegistrationRequest() {
-        return new ConfirmUserRegistrationRequest("john.doe@compira.co", "123456");
     }
 
     public static LoginRequest loginRequest() {
@@ -96,7 +91,7 @@ public final class AuthenticationApiTestData {
     }
 
     public static UserRegistrationResult userRegistrationResult() {
-        return new UserRegistrationResult("cognito-sub-123", false, codeDeliveryDetails());
+        return new UserRegistrationResult("cognito-sub-123", "john.doe@compira.co", "FORCE_CHANGE_PASSWORD");
     }
 
     public static ApplicationUser applicationUser() {

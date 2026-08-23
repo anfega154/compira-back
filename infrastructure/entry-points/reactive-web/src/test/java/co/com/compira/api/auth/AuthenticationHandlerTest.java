@@ -5,7 +5,6 @@ import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.mapper.AuthenticationRequestMapper;
 import co.com.compira.api.auth.mapper.AuthenticationResponseMapper;
 import co.com.compira.usecase.confirmpasswordrecovery.ConfirmPasswordRecoveryUseCase;
-import co.com.compira.usecase.confirmuserregistration.ConfirmUserRegistrationUseCase;
 import co.com.compira.usecase.deleteuser.DeleteUserUseCase;
 import co.com.compira.usecase.login.LoginUseCase;
 import co.com.compira.usecase.logout.LogoutUseCase;
@@ -28,7 +27,6 @@ import static org.mockito.Mockito.when;
 
 class AuthenticationHandlerTest {
     private final RegisterUserUseCase registerUserUseCase = mock(RegisterUserUseCase.class);
-    private final ConfirmUserRegistrationUseCase confirmUserRegistrationUseCase = mock(ConfirmUserRegistrationUseCase.class);
     private final LoginUseCase loginUseCase = mock(LoginUseCase.class);
     private final LogoutUseCase logoutUseCase = mock(LogoutUseCase.class);
     private final RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase = mock(RespondAuthenticationChallengeUseCase.class);
@@ -42,7 +40,6 @@ class AuthenticationHandlerTest {
     void setUp() {
         AuthenticationHandler authenticationHandler = new AuthenticationHandler(
                 registerUserUseCase,
-                confirmUserRegistrationUseCase,
                 loginUseCase,
                 logoutUseCase,
                 respondAuthenticationChallengeUseCase,

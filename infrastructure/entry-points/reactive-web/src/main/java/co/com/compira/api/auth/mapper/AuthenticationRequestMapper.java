@@ -1,7 +1,6 @@
 package co.com.compira.api.auth.mapper;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
-import co.com.compira.api.auth.dto.ConfirmUserRegistrationRequest;
 import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
@@ -11,7 +10,6 @@ import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.dto.StartPasswordRecoveryRequest;
 import co.com.compira.model.auth.AuthenticationChallengeName;
 import co.com.compira.model.auth.ConfirmPasswordRecoveryCommand;
-import co.com.compira.model.auth.ConfirmUserRegistrationCommand;
 import co.com.compira.model.auth.DeleteUserCommand;
 import co.com.compira.model.auth.LoginCommand;
 import co.com.compira.model.auth.LogoutCommand;
@@ -36,10 +34,6 @@ public class AuthenticationRequestMapper {
                 request.phoneNumber(),
                 MfaChannel.fromValue(request.preferredMfaChannel()),
                 resolveRoleCode(request.roleCode()));
-    }
-
-    public ConfirmUserRegistrationCommand toCommand(ConfirmUserRegistrationRequest request) {
-        return new ConfirmUserRegistrationCommand(request.email(), request.confirmationCode());
     }
 
     public LoginCommand toCommand(LoginRequest request) {

@@ -23,8 +23,8 @@ public class AuthenticationResponseMapper {
     public UserRegistrationResponse toResponse(UserRegistrationResult result) {
         return new UserRegistrationResponse(
                 result.cognitoSub(),
-                result.userConfirmed(),
-                mapCodeDeliveryDetails(result.codeDeliveryDetails()));
+                result.username(),
+                result.userStatus());
     }
 
     public ApplicationUserResponse toResponse(ApplicationUser applicationUser) {

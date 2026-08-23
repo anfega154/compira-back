@@ -8,7 +8,6 @@ import co.com.compira.model.auth.AuthenticationStatus;
 import co.com.compira.model.auth.AuthenticationTokens;
 import co.com.compira.model.auth.CodeDeliveryDetails;
 import co.com.compira.model.auth.ConfirmPasswordRecoveryCommand;
-import co.com.compira.model.auth.ConfirmUserRegistrationCommand;
 import co.com.compira.model.auth.DeleteUserCommand;
 import co.com.compira.model.auth.LoginCommand;
 import co.com.compira.model.auth.LogoutCommand;
@@ -41,10 +40,6 @@ public final class AuthenticationTestData {
                 "+573001112233",
                 MfaChannel.EMAIL,
                 RoleCode.COLLABORATOR);
-    }
-
-    public static ConfirmUserRegistrationCommand confirmUserRegistrationCommand() {
-        return new ConfirmUserRegistrationCommand("john.doe@compira.co", "123456");
     }
 
     public static LoginCommand loginCommand() {
@@ -86,7 +81,7 @@ public final class AuthenticationTestData {
     }
 
     public static UserRegistrationResult userRegistrationResult() {
-        return new UserRegistrationResult("cognito-sub-123", false, codeDeliveryDetails());
+        return new UserRegistrationResult("cognito-sub-123", "john.doe@compira.co", "FORCE_CHANGE_PASSWORD");
     }
 
     public static CodeDeliveryDetails codeDeliveryDetails() {

@@ -1,6 +1,7 @@
 package co.com.compira.usecase.respondauthenticationchallenge;
 
 import co.com.compira.model.auth.AuthenticationResult;
+import co.com.compira.model.auth.AuthenticationStatus;
 import co.com.compira.model.auth.RespondAuthenticationChallengeCommand;
 import co.com.compira.model.auth.gateways.ApplicationUserRepositoryGateway;
 import co.com.compira.model.auth.gateways.AuthenticationGateway;
@@ -18,7 +19,9 @@ public class RespondAuthenticationChallengeUseCase {
 
     public Mono<AuthenticationResult> execute(RespondAuthenticationChallengeCommand command) {
         return authenticationGateway.respondToChallenge(command)
-                .flatMap(result -> applicationUserRepositoryGateway.updateLastLogin(command.username())
-                        .map(result::withUser));
+                .flatMap(result -> AuthenticationStatus.AUTHENTICATED.equals(result.status())
+                        ? applicationUserRepositoryGateway.updateLastLogin(command.username())
+                        .map(result::withUser)
+                        : Mono.just(result));
     }
 }

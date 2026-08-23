@@ -1,7 +1,6 @@
 package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
-import co.com.compira.api.auth.dto.ConfirmUserRegistrationRequest;
 import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
@@ -10,7 +9,6 @@ import co.com.compira.api.auth.dto.ResendConfirmationCodeRequest;
 import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.dto.StartPasswordRecoveryRequest;
 import co.com.compira.model.auth.AuthenticationChallengeName;
-import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.common.error.CompiraException;
 import co.com.compira.model.common.error.ErrorCategory;
 import co.com.compira.model.auth.AuthenticationErrorCode;
@@ -34,10 +32,6 @@ public class AuthenticationRequestValidator {
     }
 
     public Mono<RegisterUserRequest> validateRegisterUserRequest(RegisterUserRequest request) {
-        return validate(request);
-    }
-
-    public Mono<ConfirmUserRegistrationRequest> validateConfirmRegistrationRequest(ConfirmUserRegistrationRequest request) {
         return validate(request);
     }
 
