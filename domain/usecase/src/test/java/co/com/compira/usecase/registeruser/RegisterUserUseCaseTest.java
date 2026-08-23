@@ -7,8 +7,6 @@ import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -42,6 +40,6 @@ class RegisterUserUseCaseTest {
                 .expectErrorMessage("database error")
                 .verify();
 
-        verify(authenticationGateway).deleteUser(eq("john.doe@compira.co"));
+        verify(authenticationGateway).deleteUser("john.doe@compira.co");
     }
 }

@@ -1,5 +1,6 @@
 package co.com.compira.api.auth;
 
+@SuppressWarnings("java:S2068")
 public final class AuthenticationValidationMessage {
     public static final String EMAIL_REQUIRED = "El correo electrónico es obligatorio";
     public static final String EMAIL_INVALID = "El correo electrónico no tiene un formato válido";

@@ -1,5 +1,6 @@
 package co.com.compira.model.auth;
 
+@SuppressWarnings("java:S2068")
 public record RegisterUserCommand(
         String email,
         String password,

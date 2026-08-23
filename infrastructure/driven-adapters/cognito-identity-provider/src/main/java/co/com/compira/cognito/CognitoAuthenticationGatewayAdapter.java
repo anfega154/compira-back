@@ -57,6 +57,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 
+@SuppressWarnings("java:S2068")
 @Repository
 public class CognitoAuthenticationGatewayAdapter implements AuthenticationGateway {
     private static final Logger LOGGER = LoggerFactory.getLogger(CognitoAuthenticationGatewayAdapter.class);

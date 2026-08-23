@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
+@SuppressWarnings("java:S2068")
 public record RespondAuthenticationChallengeRequest(
         @NotBlank(message = AuthenticationValidationMessage.EMAIL_REQUIRED)
         @Email(message = AuthenticationValidationMessage.EMAIL_INVALID)

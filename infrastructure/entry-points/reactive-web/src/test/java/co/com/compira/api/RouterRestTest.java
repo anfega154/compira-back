@@ -37,21 +37,6 @@ class RouterRestTest {
     }
 
     @Test
-    void shouldRouteRegisterRequestForApiV2() {
-        when(authenticationHandler.registerUser(org.mockito.ArgumentMatchers.any()))
-                .thenReturn(ServerResponse.ok().contentType(MediaType.APPLICATION_JSON).bodyValue("{\"status\":\"ok-v2\"}"));
-
-        webTestClient.post()
-                .uri("/api/v2/auth/register")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue("{}")
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody()
-                .jsonPath("$.status").isEqualTo("ok-v2");
-    }
-
-    @Test
     void shouldRouteDeleteRequestForApiV1() {
         when(authenticationHandler.deleteUser(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(ServerResponse.noContent().build());

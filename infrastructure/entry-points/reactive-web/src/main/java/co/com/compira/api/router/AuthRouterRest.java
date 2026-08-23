@@ -124,70 +124,12 @@ public class AuthRouterRest {
                                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
                             }
                     )
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/register",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "registerUser",
-                    method = RequestMethod.POST
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/login",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "login",
-                    method = RequestMethod.POST
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/logout",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "logout",
-                    method = RequestMethod.POST
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/login/challenge",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "respondAuthenticationChallenge",
-                    method = RequestMethod.POST
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/login/resend-code",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "resendConfirmationCode",
-                    method = RequestMethod.POST
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/password-recovery",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "startPasswordRecovery",
-                    method = RequestMethod.POST
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/password-recovery/confirm",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "confirmPasswordRecovery",
-                    method = RequestMethod.POST
-            ),
-            @RouterOperation(
-                    path = "/api/v2/auth/users",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "deleteUser",
-                    method = RequestMethod.DELETE
             )
     })
     @Bean
     public RouterFunction<ServerResponse> routerFunction(AuthenticationHandler authenticationHandler) {
         return RouterFunctions.route()
                 .path(AuthenticationRoute.API_V1, builder -> builder
-                        .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
-                                .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
-                                .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)
-                                .POST(AuthenticationRoute.LOGOUT, authenticationHandler::logout)
-                                .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
-                                .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
-                                .POST(AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
-                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
-                                .DELETE(AuthenticationRoute.USERS, authenticationHandler::deleteUser)))
-                .path(AuthenticationRoute.API_V2, builder -> builder
                         .path(AuthenticationRoute.AUTH_BASE, authBuilder -> authBuilder
                                 .POST(AuthenticationRoute.REGISTER, authenticationHandler::registerUser)
                                 .POST(AuthenticationRoute.LOGIN, authenticationHandler::login)

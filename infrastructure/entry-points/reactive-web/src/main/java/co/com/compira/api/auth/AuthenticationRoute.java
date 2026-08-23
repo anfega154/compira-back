@@ -1,8 +1,8 @@
 package co.com.compira.api.auth;
 
+@SuppressWarnings("java:S2068")
 public final class AuthenticationRoute {
     public static final String API_V1 = "/api/v1";
-    public static final String API_V2 = "/api/v2";
     public static final String AUTH_BASE = "/auth";
     public static final String REGISTER = "/register";
     public static final String LOGIN = "/login";

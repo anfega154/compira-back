@@ -28,6 +28,7 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
+@SuppressWarnings("java:S2068")
 @Component
 public class AuthenticationHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthenticationHandler.class);

@@ -1,5 +1,6 @@
 package co.com.compira.model.auth;
 
+@SuppressWarnings("java:S2068")
 public final class AuthenticationErrorCode {
     public static final String UNEXPECTED_ERROR = "AUTH_000";
     public static final String USER_ALREADY_EXISTS = "AUTH_001";

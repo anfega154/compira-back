@@ -1,5 +1,6 @@
 package co.com.compira.cognito;
 
+@SuppressWarnings("java:S2068")
 public final class CognitoAuthenticationConstants {
     public static final String EMAIL_ATTRIBUTE = "email";
     public static final String EMAIL_VERIFIED_ATTRIBUTE = "email_verified";

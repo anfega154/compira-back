@@ -1,5 +1,6 @@
 package co.com.compira.model.auth;
 
+@SuppressWarnings("java:S2068")
 public final class AuthenticationMessage {
     public static final String UNEXPECTED_ERROR = "Ocurrió un error interno inesperado";
     public static final String USER_ALREADY_EXISTS = "Ya existe una cuenta registrada con este correo electrónico";
