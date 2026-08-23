@@ -8,6 +8,7 @@ import co.com.compira.model.auth.CodeDeliveryDetails;
 import co.com.compira.model.auth.ConfirmPasswordRecoveryCommand;
 import co.com.compira.model.auth.LoginCommand;
 import co.com.compira.model.auth.LogoutCommand;
+import co.com.compira.model.auth.MfaChannel;
 import co.com.compira.model.auth.PasswordRecoveryResult;
 import co.com.compira.model.auth.RegisterUserCommand;
 import co.com.compira.model.auth.ResendConfirmationCodeCommand;
@@ -27,11 +28,13 @@ import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderAsyncClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminCreateUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminSetUserMfaPreferenceRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeDeliveryDetailsType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeMismatchException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ConfirmForgotPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.DeliveryMediumType;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.EmailMfaSettingsType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ExpiredCodeException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ForgotPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.GlobalSignOutRequest;
@@ -43,6 +46,7 @@ import software.amazon.awssdk.services.cognitoidentityprovider.model.NotAuthoriz
 import software.amazon.awssdk.services.cognitoidentityprovider.model.PasswordResetRequiredException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.ResendConfirmationCodeRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.RespondToAuthChallengeRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.SMSMfaSettingsType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.TooManyRequestsException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.UserNotConfirmedException;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.UserNotFoundException;
@@ -57,6 +61,7 @@ import java.util.concurrent.CompletionException;
 public class CognitoAuthenticationGatewayAdapter implements AuthenticationGateway {
     private static final Logger LOGGER = LoggerFactory.getLogger(CognitoAuthenticationGatewayAdapter.class);
     private static final String OPERATION_ADMIN_CREATE_USER = "cognito-admin-create-user";
+    private static final String OPERATION_SET_MFA_PREFERENCE = "cognito-admin-set-mfa-preference";
     private static final String OPERATION_DELETE_USER = "cognito-admin-delete-user";
     private static final String OPERATION_LOGIN = "cognito-initiate-auth";
     private static final String OPERATION_RESPOND_CHALLENGE = "cognito-respond-to-auth-challenge";
@@ -97,6 +102,8 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                         extractSubFromAttributes(response.user().attributes()),
                         response.user().username(),
                         response.user().userStatusAsString()))
+                .flatMap(result -> setMfaPreference(command.email(), command.preferredMfaChannel())
+                        .thenReturn(result))
                 .doOnNext(result -> LOGGER.info(
                         LOG_OPERATION_SUCCESS,
                         OPERATION_ADMIN_CREATE_USER,
@@ -247,6 +254,32 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 .map(AttributeType::value)
                 .findFirst()
                 .orElse(null);
+    }
+
+    private Mono<Void> setMfaPreference(String username, MfaChannel preferredMfaChannel) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(username);
+        AdminSetUserMfaPreferenceRequest mfaPreferenceRequest = AdminSetUserMfaPreferenceRequest.builder()
+                .userPoolId(properties.userPoolId())
+                .username(username)
+                .emailMfaSettings(EmailMfaSettingsType.builder()
+                        .enabled(MfaChannel.EMAIL.equals(preferredMfaChannel))
+                        .preferredMfa(MfaChannel.EMAIL.equals(preferredMfaChannel))
+                        .build())
+                .smsMfaSettings(SMSMfaSettingsType.builder()
+                        .enabled(MfaChannel.SMS.equals(preferredMfaChannel))
+                        .preferredMfa(MfaChannel.SMS.equals(preferredMfaChannel))
+                        .build())
+                .build();
+
+        LOGGER.info(LOG_OPERATION_START, OPERATION_SET_MFA_PREFERENCE, maskedEmail, preferredMfaChannel.name());
+        return Mono.fromFuture(cognitoIdentityProviderAsyncClient.adminSetUserMFAPreference(mfaPreferenceRequest))
+                .doOnSuccess(response -> LOGGER.info(
+                        LOG_OPERATION_SUCCESS,
+                        OPERATION_SET_MFA_PREFERENCE,
+                        maskedEmail,
+                        preferredMfaChannel.name()))
+                .then()
+                .onErrorMap(error -> mapException(OPERATION_SET_MFA_PREFERENCE, maskedEmail, error));
     }
 
     private Map<String, String> buildChallengeResponses(RespondAuthenticationChallengeCommand command) {
