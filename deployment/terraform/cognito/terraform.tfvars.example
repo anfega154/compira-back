@@ -1,0 +1,13 @@
+aws_region      = "us-east-1"
+project         = "compira"
+environment     = "dev"
+sms_external_id = "compira-dev-cognito-sms"
+ses_source_arn  = "arn:aws:ses:us-east-1:123456789012:identity/no-reply@compira.co"
+ses_from_email_address = "Compira <no-reply@compira.co>"
+ses_reply_to_email_address = "support@compira.co"
+
+tags = {
+  owner      = "platform"
+  repository = "compira-back"
+  domain     = "authentication"
+}
