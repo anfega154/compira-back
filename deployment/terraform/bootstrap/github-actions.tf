@@ -26,7 +26,12 @@ data "aws_iam_policy_document" "github_actions_assume" {
     condition {
       test     = "ForAnyValue:StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [for repository in var.github_repositories : "repo:${repository}:ref:refs/heads/qa"]
+      values = flatten([
+        for repository in var.github_repositories : [
+          "repo:${repository}:ref:refs/heads/qa",
+          "repo:${repository}:environment:qa"
+        ]
+      ])
     }
   }
 }
