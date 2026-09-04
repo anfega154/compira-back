@@ -1,55 +1,41 @@
 # Compira Back
 
-Proyecto base backend con:
+Backend base de COMPIRA construido con:
 
 - Java 21
-- Spring Boot + WebFlux
-- Scaffold Clean Architecture de Bancolombia
-- Driven adapter reactivo para PostgreSQL con R2DBC
-- API versionada en `/api/v1` y `/api/v2`
+- Spring Boot WebFlux
+- Bancolombia Scaffold + Clean Architecture
+- PostgreSQL reactivo con R2DBC
+- Amazon Cognito para registro, login, MFA y recuperación de contraseña
+- Terraform para aprovisionar Cognito
 
-## Estructura
+## Módulos principales
 
-- `domain/model` → modelo de dominio y puertos
-- `domain/usecase` → casos de uso
-- `infrastructure/entry-points/reactive-web` → endpoints WebFlux
-- `infrastructure/driven-adapters/r2dbc-postgresql` → adapter reactivo para Postgres
-- `applications/app-service` → ensamblado e inicio de la app
+- `domain/model` → entidades, comandos, respuestas y gateways
+- `domain/usecase` → casos de uso de autenticación y compañías
+- `infrastructure/entry-points/reactive-web` → endpoints WebFlux y OpenAPI
+- `infrastructure/driven-adapters/r2dbc-postgresql` → persistencia local de usuarios, roles y compañías
+- `infrastructure/driven-adapters/cognito-identity-provider` → integración reactiva con Cognito usando AWS SDK async
+- `deployment/terraform/cognito` → infraestructura Cognito con Terraform
 
-## Endpoints base
+## Endpoints de autenticación
 
-- `GET /api/v1/companies`
-- `GET /api/v1/companies/{id}`
-- `POST /api/v1/companies`
+Todos existen en `/api/v1` y `/api/v2`.
 
-Los mismos endpoints también existen en `/api/v2`.
+- `POST /auth/register`
+- `POST /auth/register/confirm`
+- `POST /auth/login`
+- `POST /auth/login/challenge`
+- `POST /auth/password-recovery`
+- `POST /auth/password-recovery/confirm`
 
-### Ejemplo de creación
+## Variables requeridas para Cognito
 
-```bash
-curl --request POST 'http://localhost:8080/api/v1/companies' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "name": "Compira SAS",
-    "email": "contacto@compira.co"
-  }'
-```
+- `COGNITO_REGION`
+- `COGNITO_USER_POOL_ID`
+- `COGNITO_CLIENT_ID`
 
-## Levantar PostgreSQL local
-
-Desde `/Users/andresganan/Desktop/COMPIRA/compira-back`:
-
-```bash
-docker compose -f deployment/docker-compose.yml up -d
-```
-
-La tabla `companies` se crea automáticamente con el script:
-
-- `/Users/andresganan/Desktop/COMPIRA/compira-back/deployment/postgres/init/01-create-companies.sql`
-
-## Variables de conexión
-
-La aplicación usa estas variables, con defaults locales:
+## Variables locales de base de datos
 
 - `DB_HOST=localhost`
 - `DB_PORT=5432`
@@ -58,20 +44,43 @@ La aplicación usa estas variables, con defaults locales:
 - `DB_USER=postgres`
 - `DB_PASSWORD=postgres`
 
-## Ejecutar
+## Base de datos local
+
+Levantar PostgreSQL:
+
+```bash
+docker compose -f deployment/docker-compose.yml up -d
+```
+
+Scripts de inicialización:
+
+- `/Users/andresganan/Desktop/COMPIRA/compira-back/deployment/postgres/init/01-create-companies.sql`
+- `/Users/andresganan/Desktop/COMPIRA/compira-back/deployment/postgres/init/02-create-auth-schema.sql`
+
+## Terraform Cognito
+
+Ubicación:
+
+- `/Users/andresganan/Desktop/COMPIRA/compira-back/deployment/terraform/cognito`
+
+Comandos base:
+
+```bash
+cd deployment/terraform/cognito
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+## Ejecutar backend
 
 ```bash
 ./gradlew bootRun
 ```
 
-## Validación
+## Validar
 
 ```bash
 ./gradlew test
 ```
-
-## Repositorio remoto
-
-Este proyecto quedó conectado a:
-
-- [anfega154/compira-back](https://github.com/anfega154/compira-back)

@@ -1,0 +1,5 @@
+bucket         = "compira-qa-terraform-state-<AWS_ACCOUNT_ID>"
+key            = "qa/cognito/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "compira-qa-terraform-lock"
+encrypt        = true

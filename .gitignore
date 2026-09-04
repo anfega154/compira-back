@@ -334,3 +334,18 @@ gradle-app.setting
 # -----
 *.hprof
 build-cache
+context
+*.env
+.env
+.env.*
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Bootstrap starts with local state; this local backend switch is created only after the bucket exists.
+deployment/terraform/bootstrap/backend.tf
+# Terraform local backend configuration and generated execution plans
+**/backend.hcl
+*.tfplan

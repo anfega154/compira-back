@@ -1,6 +1,5 @@
 pluginManagement {
     repositories {
-        //mavenLocal()
         gradlePluginPortal()
     }
 }
@@ -23,3 +22,5 @@ include ':reactive-web'
 project(':reactive-web').projectDir = file('./infrastructure/entry-points/reactive-web')
 include ':r2dbc-postgresql'
 project(':r2dbc-postgresql').projectDir = file('./infrastructure/driven-adapters/r2dbc-postgresql')
+include ':cognito-identity-provider'
+project(':cognito-identity-provider').projectDir = file('./infrastructure/driven-adapters/cognito-identity-provider')

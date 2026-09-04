@@ -1,0 +1,10 @@
+aws_region             = "us-east-1"
+terraform_state_bucket = "compira-qa-terraform-state-REPLACE_WITH_ACCOUNT_ID"
+terraform_lock_table   = "compira-qa-terraform-lock"
+github_repositories    = ["anfega154/compira-back", "anfega154/compira-front"]
+
+tags = {
+  project     = "compira"
+  environment = "qa"
+  managed-by  = "terraform"
+}
