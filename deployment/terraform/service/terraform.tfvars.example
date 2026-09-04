@@ -1,0 +1,8 @@
+aws_region           = "us-east-1"
+project              = "compira"
+environment          = "qa"
+image_tag            = "REPLACE_WITH_FIRST_COMMIT_SHA"
+cognito_region       = "us-east-1"
+cognito_user_pool_id = "us-east-1_XXXXXXXXX"
+cognito_client_id    = "XXXXXXXXXXXXXXXXXXXXXXXXXX"
+cors_allowed_origins = "https://REPLACE_AFTER_FRONTEND_DEPLOY.cloudfront.net"

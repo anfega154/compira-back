@@ -1,0 +1,111 @@
+name: QA backend
+on:
+  pull_request:
+    branches: [qa]
+  push:
+    branches: [qa]
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '21' }
+      - uses: gradle/actions/setup-gradle@v4
+      - run: ./gradlew test jacocoMergedReport
+      - name: Enforce merged JaCoCo coverage thresholds
+        run: |
+          python3 - <<'PYTHON'
+          import xml.etree.ElementTree as ET
+          report = ET.parse('build/reports/jacocoMergedReport/jacocoMergedReport.xml').getroot()
+          counters = {item.attrib['type']: item.attrib for item in report.findall('counter')}
+          for kind, minimum in {'LINE': 80, 'BRANCH': 60}.items():
+              missed = int(counters[kind]['missed'])
+              covered = int(counters[kind]['covered'])
+              percentage = 100 * covered / (missed + covered)
+              print(f'{kind}: {percentage:.2f}% (minimum {minimum}%)')
+              if percentage < minimum:
+                  raise SystemExit(f'{kind} coverage threshold not met')
+          PYTHON
+      - run: docker build --file deployment/Dockerfile --tag compira-api:ci .
+  deploy:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: quality
+    environment: qa
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_QA_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Create the infrastructure with ECS stopped for the first image
+        working-directory: deployment/terraform/service
+        env:
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_project: compira
+          TF_VAR_environment: qa
+          TF_VAR_app_port: '8080'
+          TF_VAR_desired_count: '0'
+          TF_VAR_container_cpu: '512'
+          TF_VAR_container_memory: '1024'
+          TF_VAR_health_check_path: /actuator/health
+          TF_VAR_api_gateway_stage_name: $default
+          TF_VAR_vpc_cidr: 10.20.0.0/16
+          TF_VAR_public_subnet_cidrs: ${{ vars.QA_PUBLIC_SUBNET_CIDRS }}
+          TF_VAR_private_subnet_cidrs: ${{ vars.QA_PRIVATE_SUBNET_CIDRS }}
+          TF_VAR_log_retention_days: '30'
+          TF_VAR_db_name: compira
+          TF_VAR_db_master_username: compira_admin
+          TF_VAR_aurora_min_acu: '0.5'
+          TF_VAR_aurora_max_acu: '2'
+          TF_VAR_cognito_region: ${{ vars.AWS_REGION }}
+          TF_VAR_cognito_user_pool_id: ${{ vars.COGNITO_USER_POOL_ID }}
+          TF_VAR_cognito_client_id: ${{ vars.COGNITO_CLIENT_ID }}
+          TF_VAR_cors_allowed_origins: ${{ vars.QA_FRONTEND_URL }}
+        run: |
+          cat > backend.hcl <<EOF_BACKEND
+          bucket         = "${{ vars.QA_TF_STATE_BUCKET }}"
+          key            = "qa/service/terraform.tfstate"
+          region         = "${{ vars.AWS_REGION }}"
+          dynamodb_table = "${{ vars.QA_TF_LOCK_TABLE }}"
+          encrypt        = true
+          EOF_BACKEND
+          terraform init -backend-config=backend.hcl
+          terraform apply -auto-approve -var='image_tag=bootstrap' -var='desired_count=0'
+          echo "ECR_REPOSITORY=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_ENV"
+      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push the commit image to ECR
+        env: { IMAGE_TAG: ${{ github.sha }} }
+        run: |
+          docker build --file deployment/Dockerfile --tag "$ECR_REPOSITORY:$IMAGE_TAG" .
+          docker push "$ECR_REPOSITORY:$IMAGE_TAG"
+      - name: Start ECS with the published immutable image
+        working-directory: deployment/terraform/service
+        env:
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_project: compira
+          TF_VAR_environment: qa
+          TF_VAR_app_port: '8080'
+          TF_VAR_container_cpu: '512'
+          TF_VAR_container_memory: '1024'
+          TF_VAR_health_check_path: /actuator/health
+          TF_VAR_api_gateway_stage_name: $default
+          TF_VAR_vpc_cidr: 10.20.0.0/16
+          TF_VAR_public_subnet_cidrs: ${{ vars.QA_PUBLIC_SUBNET_CIDRS }}
+          TF_VAR_private_subnet_cidrs: ${{ vars.QA_PRIVATE_SUBNET_CIDRS }}
+          TF_VAR_log_retention_days: '30'
+          TF_VAR_db_name: compira
+          TF_VAR_db_master_username: compira_admin
+          TF_VAR_aurora_min_acu: '0.5'
+          TF_VAR_aurora_max_acu: '2'
+          TF_VAR_cognito_region: ${{ vars.AWS_REGION }}
+          TF_VAR_cognito_user_pool_id: ${{ vars.COGNITO_USER_POOL_ID }}
+          TF_VAR_cognito_client_id: ${{ vars.COGNITO_CLIENT_ID }}
+          TF_VAR_cors_allowed_origins: ${{ vars.QA_FRONTEND_URL }}
+        run: terraform apply -auto-approve -var="image_tag=${{ github.sha }}" -var='desired_count=1'
