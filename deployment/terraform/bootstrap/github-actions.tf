@@ -29,7 +29,9 @@ data "aws_iam_policy_document" "github_actions_assume" {
       values = flatten([
         for repository in var.github_repositories : [
           "repo:${repository}:ref:refs/heads/qa",
-          "repo:${repository}:environment:qa"
+          "repo:${repository}:environment:qa",
+          "repo:${split("/", repository)[0]}@*/${split("/", repository)[1]}@*:ref:refs/heads/qa",
+          "repo:${split("/", repository)[0]}@*/${split("/", repository)[1]}@*:environment:qa"
         ]
       ])
     }

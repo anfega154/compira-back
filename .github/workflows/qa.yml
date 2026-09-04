@@ -77,7 +77,7 @@ jobs:
           encrypt        = true
           EOF_BACKEND
           terraform init -backend-config=backend.hcl
-          terraform apply -auto-approve -var='image_tag=bootstrap' -var='desired_count=0'
+          terraform apply -input=false -auto-approve -var='image_tag=bootstrap' -var='desired_count=0'
           echo "ECR_REPOSITORY=$(terraform output -raw ecr_repository_url)" >> "$GITHUB_ENV"
       - uses: aws-actions/amazon-ecr-login@v2
       - name: Build and push the commit image to ECR
@@ -109,4 +109,4 @@ jobs:
           TF_VAR_cognito_user_pool_id: ${{ vars.COGNITO_USER_POOL_ID }}
           TF_VAR_cognito_client_id: ${{ vars.COGNITO_CLIENT_ID }}
           TF_VAR_cors_allowed_origins: ${{ vars.QA_FRONTEND_URL }}
-        run: terraform apply -auto-approve -var="image_tag=${{ github.sha }}" -var='desired_count=1'
+        run: terraform apply -input=false -auto-approve -var="image_tag=${{ github.sha }}" -var='desired_count=1'
