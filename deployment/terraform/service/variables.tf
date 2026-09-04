@@ -20,4 +20,7 @@ variable "cognito_region" { type = string }
 variable "cognito_user_pool_id" { type = string }
 variable "cognito_client_id" { type = string }
 variable "cors_allowed_origins" { type = string }
-variable "tags" { type = map(string) }
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
