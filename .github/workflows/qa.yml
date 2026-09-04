@@ -42,12 +42,12 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_QA_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
       - uses: hashicorp/setup-terraform@v3
       - name: Create the infrastructure with ECS stopped for the first image
         working-directory: deployment/terraform/service
         env:
-          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
           TF_VAR_project: compira
           TF_VAR_environment: qa
           TF_VAR_app_port: '8080'
@@ -64,7 +64,7 @@ jobs:
           TF_VAR_db_master_username: compira_admin
           TF_VAR_aurora_min_acu: '0.5'
           TF_VAR_aurora_max_acu: '2'
-          TF_VAR_cognito_region: ${{ vars.AWS_REGION }}
+          TF_VAR_cognito_region: ${{ vars.AWS_REGION || 'us-east-1' }}
           TF_VAR_cognito_user_pool_id: ${{ vars.COGNITO_USER_POOL_ID }}
           TF_VAR_cognito_client_id: ${{ vars.COGNITO_CLIENT_ID }}
           TF_VAR_cors_allowed_origins: ${{ vars.QA_FRONTEND_URL }}
@@ -72,7 +72,7 @@ jobs:
           cat > backend.hcl <<EOF_BACKEND
           bucket         = "${{ vars.QA_TF_STATE_BUCKET }}"
           key            = "qa/service/terraform.tfstate"
-          region         = "${{ vars.AWS_REGION }}"
+          region         = "${{ vars.AWS_REGION || 'us-east-1' }}"
           dynamodb_table = "${{ vars.QA_TF_LOCK_TABLE }}"
           encrypt        = true
           EOF_BACKEND
@@ -89,7 +89,7 @@ jobs:
       - name: Start ECS with the published immutable image
         working-directory: deployment/terraform/service
         env:
-          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-1' }}
           TF_VAR_project: compira
           TF_VAR_environment: qa
           TF_VAR_app_port: '8080'
@@ -105,7 +105,7 @@ jobs:
           TF_VAR_db_master_username: compira_admin
           TF_VAR_aurora_min_acu: '0.5'
           TF_VAR_aurora_max_acu: '2'
-          TF_VAR_cognito_region: ${{ vars.AWS_REGION }}
+          TF_VAR_cognito_region: ${{ vars.AWS_REGION || 'us-east-1' }}
           TF_VAR_cognito_user_pool_id: ${{ vars.COGNITO_USER_POOL_ID }}
           TF_VAR_cognito_client_id: ${{ vars.COGNITO_CLIENT_ID }}
           TF_VAR_cors_allowed_origins: ${{ vars.QA_FRONTEND_URL }}
