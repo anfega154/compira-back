@@ -476,6 +476,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "DB_PORT", value = "5432" },
         { name = "DB_NAME", value = var.db_name },
         { name = "DB_SCHEMA", value = "public" },
+        { name = "DB_SSL_MODE", value = "require" },
         { name = "DB_USER", value = var.db_master_username },
         { name = "LIQUIBASE_ENABLED", value = "true" },
         { name = "COGNITO_REGION", value = var.cognito_region },
@@ -498,11 +499,12 @@ resource "aws_ecs_task_definition" "app" {
 }
 
 resource "aws_ecs_service" "app" {
-  name            = "${local.name_prefix}-service"
-  cluster         = aws_ecs_cluster.this.id
-  task_definition = aws_ecs_task_definition.app.arn
-  desired_count   = var.desired_count
-  launch_type     = "FARGATE"
+  name                  = "${local.name_prefix}-service"
+  cluster               = aws_ecs_cluster.this.id
+  task_definition       = aws_ecs_task_definition.app.arn
+  desired_count         = var.desired_count
+  launch_type           = "FARGATE"
+  wait_for_steady_state = true
 
   network_configuration {
     assign_public_ip = false
