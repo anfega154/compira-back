@@ -351,7 +351,17 @@ resource "aws_apigatewayv2_vpc_link" "this" {
 resource "aws_apigatewayv2_api" "this" {
   name          = "${local.name_prefix}-http-api"
   protocol_type = "HTTP"
-  description   = "Public HTTP API for Franquicias routed privately to ECS through an internal ALB."
+  description   = "Public HTTP API for Compira routed privately to ECS through an internal ALB."
+
+  cors_configuration {
+    allow_origins = distinct(concat(
+      ["http://localhost:5173"],
+      compact(split(",", var.cors_allowed_origins))
+    ))
+    allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+    allow_headers = ["Authorization", "Content-Type", "X-Requested-With"]
+    max_age       = 300
+  }
 
   tags = local.tags
 }
@@ -482,7 +492,10 @@ resource "aws_ecs_task_definition" "app" {
         { name = "COGNITO_REGION", value = var.cognito_region },
         { name = "COGNITO_USER_POOL_ID", value = var.cognito_user_pool_id },
         { name = "COGNITO_CLIENT_ID", value = var.cognito_client_id },
-        { name = "CORS_ALLOWED_ORIGINS", value = var.cors_allowed_origins }
+        { name = "CORS_ALLOWED_ORIGINS", value = join(",", distinct(concat(
+          ["http://localhost:5173"],
+          compact(split(",", var.cors_allowed_origins))
+        ))) }
       ]
       logConfiguration = {
         logDriver = "awslogs"
