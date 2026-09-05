@@ -9,7 +9,7 @@ import javax.sql.DataSource;
 
 @Configuration
 public class LiquibaseConfig {
-    private static final String JDBC_URL_TEMPLATE = "jdbc:postgresql://%s:%d/%s?currentSchema=%s";
+    private static final String JDBC_URL_TEMPLATE = "jdbc:postgresql://%s:%d/%s?currentSchema=%s&sslmode=%s";
 
     @Bean
     @LiquibaseDataSource
@@ -27,6 +27,7 @@ public class LiquibaseConfig {
                 properties.host(),
                 properties.port(),
                 properties.database(),
-                properties.schema());
+                properties.schema(),
+                properties.sslMode());
     }
 }

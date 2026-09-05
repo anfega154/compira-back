@@ -10,5 +10,6 @@ public record JdbcConnectionProperties(
         String schema,
         String username,
         String password,
-        String driverClassName) {
+        String driverClassName,
+        String sslMode) {
 }
