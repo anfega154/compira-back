@@ -1,15 +1,44 @@
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: compira-postgres
     environment:
-      POSTGRES_DB: compira
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${DB_NAME:-compira}
+      POSTGRES_USER: ${DB_USER:-compira_admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-compira_local_password}
     ports:
       - "5432:5432"
+    volumes:
+      - compira_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d compira"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: deployment/Dockerfile
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-compira}
+      DB_SCHEMA: ${DB_SCHEMA:-public}
+      DB_USER: ${DB_USER:-compira_admin}
+      DB_PASSWORD: ${DB_PASSWORD:-compira_local_password}
+      DB_SSL_MODE: disable
+      LIQUIBASE_ENABLED: "true"
+      COGNITO_REGION: ${COGNITO_REGION:?Configure COGNITO_REGION in deployment/.env.local}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:?Configure COGNITO_USER_POOL_ID in deployment/.env.local}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:?Configure COGNITO_CLIENT_ID in deployment/.env.local}
+      CORS_ALLOWED_ORIGINS: http://localhost:5173
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  compira_postgres_data:

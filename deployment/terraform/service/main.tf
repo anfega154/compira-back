@@ -326,6 +326,7 @@ resource "aws_cloudwatch_log_group" "api_gateway" {
 resource "aws_ecr_repository" "app" {
   name                 = "${local.name_prefix}-api"
   image_tag_mutability = "IMMUTABLE"
+  force_delete         = true
 
   image_scanning_configuration {
     scan_on_push = true

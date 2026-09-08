@@ -1,0 +1,14 @@
+.git
+.github
+.gradle
+**/build
+context
+.terraform
+**/.terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.env
+.env.*
+*.log
+.DS_Store
