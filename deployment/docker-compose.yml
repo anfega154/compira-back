@@ -2,9 +2,9 @@ services:
   postgres:
     image: postgres:17-alpine
     environment:
-      POSTGRES_DB: ${DB_NAME:-compira}
-      POSTGRES_USER: ${DB_USER:-compira_admin}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-compira_local_password}
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
@@ -23,10 +23,10 @@ services:
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-compira}
-      DB_SCHEMA: ${DB_SCHEMA:-public}
-      DB_USER: ${DB_USER:-compira_admin}
-      DB_PASSWORD: ${DB_PASSWORD:-compira_local_password}
+      DB_NAME: ${DB_NAME}
+      DB_SCHEMA: ${DB_SCHEMA}
+      DB_USER: ${DB_USER:}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_SSL_MODE: disable
       LIQUIBASE_ENABLED: "true"
       COGNITO_REGION: ${COGNITO_REGION:?Configure COGNITO_REGION in deployment/.env.local}
