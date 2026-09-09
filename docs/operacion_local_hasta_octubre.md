@@ -91,6 +91,9 @@ el control de infraestructura. Cognito tampoco se modifica.
    docker compose --env-file deployment/.env.local \
      -f deployment/docker-compose.yml logs -f api
    ```
+ ```bash
+docker compose --env-file deployment/.env.local -f deployment/docker-compose.yml up --build -d
+  ```
 5. Verifique el API:
    ```bash
    curl http://localhost:8080/actuator/health
