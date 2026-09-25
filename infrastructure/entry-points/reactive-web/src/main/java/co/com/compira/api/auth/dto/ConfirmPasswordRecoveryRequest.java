@@ -13,6 +13,6 @@ public record ConfirmPasswordRecoveryRequest(
         @NotBlank(message = AuthenticationValidationMessage.CHALLENGE_CODE_REQUIRED)
         String confirmationCode,
         @NotBlank(message = AuthenticationValidationMessage.NEW_PASSWORD_REQUIRED)
-        @Size(min = 8, max = 128, message = AuthenticationValidationMessage.NEW_PASSWORD_LENGTH)
+        @Size(min = 10, max = 128, message = AuthenticationValidationMessage.NEW_PASSWORD_LENGTH)
         String newPassword) {
 }

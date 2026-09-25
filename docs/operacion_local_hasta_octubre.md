@@ -81,8 +81,10 @@ el control de infraestructura. Cognito tampoco se modifica.
    cp deployment/.env.local.example deployment/.env.local
    ```
 3. Edite `deployment/.env.local` con `COGNITO_REGION`,
-   `COGNITO_USER_POOL_ID` y `COGNITO_CLIENT_ID` existentes. No agregue llaves
-   AWS: estas operaciones de Cognito no requieren `AWS_ACCESS_KEY_ID` ni
+   `COGNITO_USER_POOL_ID` y `COGNITO_CLIENT_ID` existentes. Si publica el
+   frontend mediante ngrok, agregue también su URL a `CORS_ALLOWED_ORIGINS`,
+   separada por coma de `http://localhost:5173`. No agregue llaves AWS: estas
+   operaciones de Cognito no requieren `AWS_ACCESS_KEY_ID` ni
    `AWS_SECRET_ACCESS_KEY` en la aplicación.
 4. Arranque PostgreSQL, las migraciones Liquibase y el API:
    ```bash
@@ -91,14 +93,11 @@ el control de infraestructura. Cognito tampoco se modifica.
    docker compose --env-file deployment/.env.local \
      -f deployment/docker-compose.yml logs -f api
    ```
- ```bash
-docker compose --env-file deployment/.env.local -f deployment/docker-compose.yml up --build -d
-  ```
 5. Verifique el API:
    ```bash
    curl http://localhost:8080/actuator/health
    ```
-6. Para apagar y conservar datos: `docker compose -f deployment/docker-compose.yml down`.
+6. Para apagar y conservar datos: `docker compose --env-file deployment/.env.local -f deployment/docker-compose.yml down`.
    Para borrar la base local: añada `-v`.
 
 ## 3. Frontend local

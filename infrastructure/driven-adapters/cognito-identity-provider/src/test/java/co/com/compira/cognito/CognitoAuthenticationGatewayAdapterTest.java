@@ -375,6 +375,20 @@ class CognitoAuthenticationGatewayAdapterTest {
     }
 
     @Test
+    void shouldMapUnverifiedRecoveryContactOnForgotPassword() {
+        when(cognitoClient.forgotPassword(any(software.amazon.awssdk.services.cognitoidentityprovider.model.ForgotPasswordRequest.class)))
+                .thenReturn(CompletableFuture.failedFuture(InvalidParameterException.builder()
+                        .message("Cannot reset password for the user as there is no registered/verified email or phone_number")
+                        .build()));
+
+        StepVerifier.create(adapter.startPasswordRecovery(new StartPasswordRecoveryCommand("john@compira.co")))
+                .expectErrorMatches(error -> error instanceof CompiraException
+                        && "AUTH_016".equals(((CompiraException) error).getCode())
+                        && ErrorCategory.BAD_REQUEST.equals(((CompiraException) error).getErrorCategory()))
+                .verify();
+    }
+
+    @Test
     void shouldMapGenericCognitoException() {
         when(cognitoClient.initiateAuth(any(software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest.class)))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("unexpected")));

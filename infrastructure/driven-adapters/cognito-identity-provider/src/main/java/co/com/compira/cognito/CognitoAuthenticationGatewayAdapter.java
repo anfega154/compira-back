@@ -376,6 +376,14 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                     ErrorCategory.INTERNAL_SERVER_ERROR);
         }
 
+        if (normalizedMessage.contains("no registered/verified email")
+                || normalizedMessage.contains("verified email or phone")) {
+            return new CompiraException(
+                    AuthenticationErrorCode.UNVERIFIED_RECOVERY_CONTACT,
+                    AuthenticationMessage.UNVERIFIED_RECOVERY_CONTACT,
+                    ErrorCategory.BAD_REQUEST);
+        }
+
         return new CompiraException(
                 AuthenticationErrorCode.INVALID_REQUEST,
                 AuthenticationMessage.INVALID_REQUEST,
