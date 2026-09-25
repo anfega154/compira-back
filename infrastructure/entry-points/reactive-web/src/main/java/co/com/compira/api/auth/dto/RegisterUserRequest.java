@@ -12,7 +12,7 @@ public record RegisterUserRequest(
         @Email(message = AuthenticationValidationMessage.EMAIL_INVALID)
         String email,
         @NotBlank(message = AuthenticationValidationMessage.PASSWORD_REQUIRED)
-        @Size(min = 8, max = 128, message = AuthenticationValidationMessage.PASSWORD_LENGTH)
+        @Size(min = 10, max = 128, message = AuthenticationValidationMessage.PASSWORD_LENGTH)
         String password,
         @NotBlank(message = AuthenticationValidationMessage.FIRST_NAME_REQUIRED)
         @Size(max = 100, message = AuthenticationValidationMessage.FIRST_NAME_LENGTH)

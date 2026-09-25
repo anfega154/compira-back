@@ -20,6 +20,6 @@ public record RespondAuthenticationChallengeRequest(
         String code,
         @Pattern(regexp = "^(EMAIL|SMS)?$", message = AuthenticationValidationMessage.MFA_CHANNEL_INVALID)
         String mfaChannel,
-        @Size(min = 8, max = 128, message = AuthenticationValidationMessage.NEW_PASSWORD_LENGTH)
+        @Size(min = 10, max = 128, message = AuthenticationValidationMessage.NEW_PASSWORD_LENGTH)
         String newPassword) {
 }
