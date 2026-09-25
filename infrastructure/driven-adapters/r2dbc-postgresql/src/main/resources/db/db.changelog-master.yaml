@@ -11,3 +11,9 @@ databaseChangeLog:
       file: db/changelog/create_table_user_roles.yaml
   - include:
       file: db/changelog/seed_roles.yaml
+  - include:
+      file: db/changelog/create_table_tasks.yaml
+  - include:
+      file: db/changelog/create_table_task_observations.yaml
+  - include:
+      file: db/changelog/create_table_task_history.yaml
