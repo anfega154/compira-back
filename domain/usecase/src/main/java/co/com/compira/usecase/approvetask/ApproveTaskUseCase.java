@@ -15,22 +15,25 @@ import co.com.compira.model.task.TaskUser;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
 import reactor.core.publisher.Mono;
+import co.com.compira.usecase.teams.TeamsUseCase;
 
 import java.util.UUID;
 
 public class ApproveTaskUseCase {
+    private final TeamsUseCase teams;
     private final TaskRepositoryGateway taskRepositoryGateway;
     private final TaskAuthorization taskAuthorization;
 
     public ApproveTaskUseCase(TaskRepositoryGateway taskRepositoryGateway,
-                              TaskUserDirectoryGateway taskUserDirectoryGateway) {
+                              TaskUserDirectoryGateway taskUserDirectoryGateway, TeamsUseCase teams) {
+        this.teams = teams;
         this.taskRepositoryGateway = taskRepositoryGateway;
         this.taskAuthorization = new TaskAuthorization(taskUserDirectoryGateway);
     }
 
     public Mono<Task> execute(ApproveTaskCommand command) {
         return taskAuthorization.requireCoordinator(command.actorEmail())
-                .flatMap(coordinator -> loadTask(command.taskId())
+                .flatMap(coordinator -> teams.requireTaskCoordinator(command.taskId(), coordinator.id()).then(loadTask(command.taskId()))
                         .flatMap(task -> approve(coordinator, task)));
     }
 

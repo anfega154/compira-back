@@ -19,10 +19,22 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class CreateTaskUseCaseTest {
+    private final co.com.compira.usecase.teams.TeamsUseCase teams = mock(co.com.compira.usecase.teams.TeamsUseCase.class);
+    private final co.com.compira.usecase.notifications.TaskNotificationsUseCase notifications = mock(co.com.compira.usecase.notifications.TaskNotificationsUseCase.class);
+    @org.junit.jupiter.api.BeforeEach
+    void configureTeamAndNotifications() {
+        when(teams.requireTaskCoordinator(any(), any())).thenReturn(Mono.empty());
+        when(teams.requireTaskMember(any(), any())).thenReturn(Mono.empty());
+        when(teams.requireMember(any(), any())).thenReturn(Mono.empty());
+        when(teams.requireCoordinator(any(), any())).thenReturn(Mono.just(TaskTestData.team()));
+        when(teams.linkNewTask(any(), any())).thenReturn(Mono.empty());
+        when(notifications.assignment(any(), any(), any(), any())).thenReturn(Mono.empty());
+    }
+
     private final TaskRepositoryGateway taskRepositoryGateway = mock(TaskRepositoryGateway.class);
     private final TaskUserDirectoryGateway taskUserDirectoryGateway = mock(TaskUserDirectoryGateway.class);
     private final TaskClockGateway taskClockGateway = () -> TaskTestData.now();
-    private final CreateTaskUseCase useCase = new CreateTaskUseCase(taskRepositoryGateway, taskUserDirectoryGateway, taskClockGateway);
+    private final CreateTaskUseCase useCase = new CreateTaskUseCase(taskRepositoryGateway, taskUserDirectoryGateway, taskClockGateway, notifications, teams);
 
     @Test
     void shouldCreateTaskWhenCoordinatorAndResponsibleAreValid() {
@@ -37,7 +49,7 @@ class CreateTaskUseCaseTest {
 
         CreateTaskCommand command = new CreateTaskCommand(
                 TaskTestData.COORDINATOR_EMAIL, "Preparar informe", "Detalle", TaskTestData.now().plusDays(2),
-                TaskTestData.COLLABORATOR_EMAIL);
+                TaskTestData.COLLABORATOR_EMAIL, java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
 
         StepVerifier.create(useCase.execute(command))
                 .assertNext(task -> {
@@ -52,7 +64,7 @@ class CreateTaskUseCaseTest {
                 .thenReturn(Mono.just(TaskTestData.collaborator()));
 
         CreateTaskCommand command = new CreateTaskCommand(
-                TaskTestData.COLLABORATOR_EMAIL, "Preparar informe", null, TaskTestData.now().plusDays(2), null);
+                TaskTestData.COLLABORATOR_EMAIL, "Preparar informe", null, TaskTestData.now().plusDays(2), null, java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
 
         StepVerifier.create(useCase.execute(command))
                 .expectErrorMatches(error -> error instanceof CompiraException compiraException
@@ -63,7 +75,7 @@ class CreateTaskUseCaseTest {
     @Test
     void shouldRejectWhenDueDateIsInThePast() {
         CreateTaskCommand command = new CreateTaskCommand(
-                TaskTestData.COORDINATOR_EMAIL, "Preparar informe", null, TaskTestData.now().minusDays(1), null);
+                TaskTestData.COORDINATOR_EMAIL, "Preparar informe", null, TaskTestData.now().minusDays(1), null, java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
 
         StepVerifier.create(useCase.execute(command))
                 .expectErrorMatches(error -> error instanceof CompiraException compiraException
@@ -79,7 +91,7 @@ class CreateTaskUseCaseTest {
                 .thenReturn(Mono.just(TaskTestData.administrator()));
 
         CreateTaskCommand command = new CreateTaskCommand(
-                TaskTestData.COORDINATOR_EMAIL, "Preparar informe", null, TaskTestData.now().plusDays(2), "boss@compira.co");
+                TaskTestData.COORDINATOR_EMAIL, "Preparar informe", null, TaskTestData.now().plusDays(2), "boss@compira.co", java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
 
         StepVerifier.create(useCase.execute(command))
                 .expectErrorMatches(error -> error instanceof CompiraException compiraException

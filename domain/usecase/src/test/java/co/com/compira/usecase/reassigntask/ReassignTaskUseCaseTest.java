@@ -19,9 +19,21 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class ReassignTaskUseCaseTest {
+    private final co.com.compira.usecase.teams.TeamsUseCase teams = mock(co.com.compira.usecase.teams.TeamsUseCase.class);
+    private final co.com.compira.usecase.notifications.TaskNotificationsUseCase notifications = mock(co.com.compira.usecase.notifications.TaskNotificationsUseCase.class);
+    @org.junit.jupiter.api.BeforeEach
+    void configureTeamAndNotifications() {
+        when(teams.requireTaskCoordinator(any(), any())).thenReturn(Mono.empty());
+        when(teams.requireTaskMember(any(), any())).thenReturn(Mono.empty());
+        when(teams.requireMember(any(), any())).thenReturn(Mono.empty());
+        when(teams.requireCoordinator(any(), any())).thenReturn(Mono.just(TaskTestData.team()));
+        when(teams.linkNewTask(any(), any())).thenReturn(Mono.empty());
+        when(notifications.assignment(any(), any(), any(), any())).thenReturn(Mono.empty());
+    }
+
     private final TaskRepositoryGateway taskRepositoryGateway = mock(TaskRepositoryGateway.class);
     private final TaskUserDirectoryGateway taskUserDirectoryGateway = mock(TaskUserDirectoryGateway.class);
-    private final ReassignTaskUseCase useCase = new ReassignTaskUseCase(taskRepositoryGateway, taskUserDirectoryGateway);
+    private final ReassignTaskUseCase useCase = new ReassignTaskUseCase(taskRepositoryGateway, taskUserDirectoryGateway, notifications, teams);
 
     @Test
     void shouldReassignKeepingPreviousStatusAndRecordingPreviousResponsible() {

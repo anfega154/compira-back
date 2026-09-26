@@ -1,0 +1,41 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-organization-settings-and-notifications
+      author: compira
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE teams (
+                  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+                  name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+                  coordinator_user_id UUID NOT NULL REFERENCES users(id)
+              );
+              CREATE TABLE team_members (
+                  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                  team_id UUID NOT NULL REFERENCES teams(id)
+              );
+              CREATE INDEX idx_team_members_team ON team_members(team_id);
+              CREATE TABLE task_teams (
+                  task_id UUID PRIMARY KEY REFERENCES tasks(id),
+                  team_id UUID NOT NULL REFERENCES teams(id)
+              );
+              CREATE INDEX idx_task_teams_team ON task_teams(team_id);
+              CREATE TABLE organization_settings (
+                  id SMALLINT PRIMARY KEY CHECK (id = 1),
+                  time_zone VARCHAR(100),
+                  notifications_enabled BOOLEAN NOT NULL DEFAULT FALSE
+              );
+              INSERT INTO organization_settings (id) VALUES (1);
+              CREATE TABLE task_notifications (
+                  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                  task_id UUID NOT NULL REFERENCES tasks(id),
+                  recipient_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                  task_title VARCHAR(150) NOT NULL,
+                  type VARCHAR(20) NOT NULL CHECK (type IN ('ASSIGNED', 'REASSIGNED', 'DUE_SOON', 'OVERDUE')),
+                  event_key VARCHAR(255) NOT NULL,
+                  deliverable BOOLEAN NOT NULL,
+                  created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                  UNIQUE (event_key, recipient_id)
+              );
+              CREATE INDEX idx_notifications_recipient ON task_notifications (recipient_id, id DESC) WHERE deliverable;
+              CREATE INDEX idx_tasks_alert_deadline ON tasks (due_date) WHERE status IN ('PENDING', 'IN_PROGRESS', 'DELAYED');

@@ -15,5 +15,5 @@ public record CreateTaskRequest(
         String description,
         OffsetDateTime dueDate,
         @Email(message = TaskValidationMessage.RESPONSIBLE_EMAIL_INVALID)
-        String responsibleEmail) {
+        String responsibleEmail, @jakarta.validation.constraints.NotNull(message = TaskValidationMessage.TEAM_REQUIRED) java.util.UUID teamId) {
 }

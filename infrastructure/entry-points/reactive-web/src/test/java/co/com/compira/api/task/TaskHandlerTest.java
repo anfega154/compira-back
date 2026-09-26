@@ -49,6 +49,10 @@ class TaskHandlerTest {
 
     @BeforeEach
     void setUp() {
+        org.springframework.transaction.reactive.TransactionalOperator transactions = mock(org.springframework.transaction.reactive.TransactionalOperator.class);
+        when(transactions.transactional(org.mockito.ArgumentMatchers.<Mono<Object>>any())).thenAnswer(invocation -> invocation.getArgument(0));
+        co.com.compira.usecase.teams.TeamsUseCase teams = mock(co.com.compira.usecase.teams.TeamsUseCase.class);
+        when(teams.requireTaskAccess(any(), any())).thenReturn(Mono.empty());
         TaskHandler taskHandler = new TaskHandler(
                 createTaskUseCase,
                 assignTaskUseCase,
@@ -65,9 +69,14 @@ class TaskHandlerTest {
                 new TaskRequestValidator(Validation.buildDefaultValidatorFactory().getValidator()),
                 new TaskRequestMapper(),
                 new TaskResponseMapper(),
-                new TaskErrorHandler());
+                new TaskErrorHandler(), transactions);
 
-        webTestClient = WebTestClient.bindToRouterFunction(new TaskRouterRest().taskRouterFunction(taskHandler)).build();
+        webTestClient = WebTestClient.bindToRouterFunction(new TaskRouterRest().taskRouterFunction(taskHandler, teams, new TaskErrorHandler()))
+                .webFilter((exchange, chain) -> {
+                    String email = exchange.getRequest().getHeaders().getFirst(TaskRoute.ACTOR_EMAIL_HEADER);
+                    return chain.filter(email == null ? exchange : exchange.mutate()
+                            .principal(Mono.just((java.security.Principal) () -> email)).build());
+                }).build();
     }
 
     @Test
@@ -78,19 +87,19 @@ class TaskHandlerTest {
                 .uri(BASE)
                 .header(TaskRoute.ACTOR_EMAIL_HEADER, TaskApiTestData.ACTOR_EMAIL)
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(Map.of("title", "Preparar informe"))
+                .bodyValue(Map.of("title", "Preparar informe", "teamId", "55555555-5555-5555-5555-555555555555"))
                 .exchange()
                 .expectStatus().isCreated();
     }
 
     @Test
-    void shouldRejectCreateWhenActorHeaderMissing() {
+    void shouldRejectCreateWithoutAuthenticatedPrincipal() {
         webTestClient.post()
                 .uri(BASE)
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(Map.of("title", "Preparar informe"))
+                .bodyValue(Map.of("title", "Preparar informe", "teamId", "55555555-5555-5555-5555-555555555555"))
                 .exchange()
-                .expectStatus().isBadRequest();
+                .expectStatus().isUnauthorized();
     }
 
     @Test

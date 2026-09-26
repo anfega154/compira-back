@@ -14,18 +14,25 @@ import co.com.compira.model.task.TaskUser;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
 import reactor.core.publisher.Mono;
+import co.com.compira.usecase.teams.TeamsUseCase;
+import co.com.compira.usecase.notifications.TaskNotificationsUseCase;
+import co.com.compira.model.notification.NotificationType;
 
 import java.util.UUID;
 
 public class ReassignTaskUseCase {
     private static final String NO_PREVIOUS_RESPONSIBLE = "<sin-responsable>";
 
+    private final TaskNotificationsUseCase notifications;
+    private final TeamsUseCase teams;
     private final TaskRepositoryGateway taskRepositoryGateway;
     private final TaskUserDirectoryGateway taskUserDirectoryGateway;
     private final TaskAuthorization taskAuthorization;
 
     public ReassignTaskUseCase(TaskRepositoryGateway taskRepositoryGateway,
-                               TaskUserDirectoryGateway taskUserDirectoryGateway) {
+                               TaskUserDirectoryGateway taskUserDirectoryGateway, TaskNotificationsUseCase notifications, TeamsUseCase teams) {
+        this.notifications = notifications;
+        this.teams = teams;
         this.taskRepositoryGateway = taskRepositoryGateway;
         this.taskUserDirectoryGateway = taskUserDirectoryGateway;
         this.taskAuthorization = new TaskAuthorization(taskUserDirectoryGateway);
@@ -33,10 +40,10 @@ public class ReassignTaskUseCase {
 
     public Mono<Task> execute(ReassignTaskCommand command) {
         return taskAuthorization.requireCoordinator(command.actorEmail())
-                .flatMap(coordinator -> loadTask(command.taskId())
+                .flatMap(coordinator -> teams.requireTaskCoordinator(command.taskId(), coordinator.id()).then(loadTask(command.taskId()))
                         .flatMap(task -> ensureReassignable(task)
                                 .then(Mono.defer(() -> taskAuthorization.resolveCollaborator(command.newResponsibleEmail())))
-                                .flatMap(newResponsible -> reassign(task, coordinator, newResponsible))));
+                                .flatMap(newResponsible -> teams.requireTaskMember(task.id(), newResponsible.id()).then(Mono.defer(() -> reassign(task, coordinator, newResponsible))))));
     }
 
     private Mono<Task> reassign(Task task, TaskUser coordinator, TaskUser newResponsible) {
@@ -51,7 +58,8 @@ public class ReassignTaskUseCase {
                                         newResponsible.email(),
                                         task.status().name(),
                                         null))
-                                .thenReturn(updatedTask)));
+                                .flatMap(event -> notifications.assignment(updatedTask, newResponsible.id(), NotificationType.REASSIGNED, event.id()))
+                        .thenReturn(updatedTask)));
     }
 
     private Mono<String> resolvePreviousResponsibleEmail(UUID previousResponsibleId) {

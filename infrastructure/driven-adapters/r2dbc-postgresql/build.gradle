@@ -10,5 +10,8 @@ dependencies {
 
     runtimeOnly 'org.postgresql:postgresql'
 
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.postgresql:postgresql'
     testImplementation 'org.reactivecommons.utils:object-mapper:0.1.0'
 }

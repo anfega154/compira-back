@@ -26,7 +26,7 @@ public class TaskRequestMapper {
                 request.title(),
                 request.description(),
                 request.dueDate(),
-                request.responsibleEmail());
+                request.responsibleEmail(), request.teamId());
     }
 
     public AssignTaskCommand toCommand(String actorEmail, UUID taskId, AssignTaskRequest request) {

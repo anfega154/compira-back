@@ -33,6 +33,10 @@ public class TaskErrorHandler {
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(new TaskErrorResponse(exception.getCode(), exception.getMessage()));
         }
+        if (throwable instanceof org.springframework.web.server.ServerWebInputException) {
+            return ServerResponse.badRequest().contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(new TaskErrorResponse(TaskErrorCode.INVALID_TASK_REQUEST, TaskMessage.INVALID_TASK_REQUEST));
+        }
         if (throwable instanceof IllegalArgumentException exception) {
             LOGGER.warn(LOG_BAD_REQUEST_ERROR, HttpStatus.BAD_REQUEST.value(), exception.getMessage());
             return ServerResponse.status(HttpStatus.BAD_REQUEST)

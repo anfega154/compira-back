@@ -13,8 +13,8 @@ import java.util.UUID;
 
 @Repository
 public class TaskUserDirectoryAdapter implements TaskUserDirectoryGateway {
-    private static final String SELECT_USER_BY_EMAIL_QUERY = "SELECT * FROM users WHERE email = :email";
-    private static final String SELECT_USER_BY_ID_QUERY = "SELECT * FROM users WHERE id = :id";
+    private static final String SELECT_USER_BY_EMAIL_QUERY = "SELECT * FROM users WHERE email = :email AND status = 'ACTIVE'";
+    private static final String SELECT_USER_BY_ID_QUERY = "SELECT * FROM users WHERE id = :id AND status = 'ACTIVE'";
     private static final String SELECT_ROLES_BY_USER_ID_QUERY = """
             SELECT r.code
             FROM roles r

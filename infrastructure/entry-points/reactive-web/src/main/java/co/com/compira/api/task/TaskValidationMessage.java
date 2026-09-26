@@ -1,6 +1,7 @@
 package co.com.compira.api.task;
 
 public final class TaskValidationMessage {
+    public static final String TEAM_REQUIRED = "El equipo es obligatorio";
     public static final String ACTOR_EMAIL_REQUIRED = "El correo del usuario que realiza la operación es obligatorio";
     public static final String TITLE_REQUIRED = "El título de la tarea es obligatorio";
     public static final String TITLE_LENGTH = "El título puede tener máximo 150 caracteres";

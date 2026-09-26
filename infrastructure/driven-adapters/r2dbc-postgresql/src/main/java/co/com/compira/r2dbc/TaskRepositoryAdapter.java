@@ -42,7 +42,7 @@ public class TaskRepositoryAdapter implements TaskRepositoryGateway {
     private static final String SELECT_TASKS_BY_RESPONSIBLE_QUERY =
             "SELECT * FROM tasks WHERE responsible_user_id = :responsibleUserId ORDER BY due_date NULLS LAST, created_at DESC";
     private static final String SELECT_TASKS_BY_CREATOR_QUERY =
-            "SELECT * FROM tasks WHERE created_by_user_id = :createdByUserId ORDER BY due_date NULLS LAST, created_at DESC";
+            "SELECT tasks.* FROM tasks JOIN task_teams tt ON tt.task_id = tasks.id JOIN teams t ON t.id = tt.team_id WHERE t.coordinator_user_id = :createdByUserId ORDER BY due_date NULLS LAST, created_at DESC";
     private static final String SELECT_ALL_TASKS_QUERY =
             "SELECT * FROM tasks ORDER BY due_date NULLS LAST, created_at DESC";
     private static final String INSERT_OBSERVATION_QUERY = """
@@ -121,7 +121,7 @@ public class TaskRepositoryAdapter implements TaskRepositoryGateway {
     }
 
     @Override
-    public Flux<Task> findByCreator(UUID createdByUserId) {
+    public Flux<Task> findByCoordinator(UUID createdByUserId) {
         return databaseClient.sql(SELECT_TASKS_BY_CREATOR_QUERY)
                 .bind("createdByUserId", createdByUserId)
                 .fetch()

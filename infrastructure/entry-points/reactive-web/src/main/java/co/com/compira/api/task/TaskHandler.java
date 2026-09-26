@@ -31,6 +31,7 @@ import java.util.UUID;
 
 @Component
 public class TaskHandler {
+    private final org.springframework.transaction.reactive.TransactionalOperator transactions;
     private final CreateTaskUseCase createTaskUseCase;
     private final AssignTaskUseCase assignTaskUseCase;
     private final ReassignTaskUseCase reassignTaskUseCase;
@@ -63,7 +64,8 @@ public class TaskHandler {
                        TaskRequestValidator taskRequestValidator,
                        TaskRequestMapper taskRequestMapper,
                        TaskResponseMapper taskResponseMapper,
-                       TaskErrorHandler taskErrorHandler) {
+                       TaskErrorHandler taskErrorHandler, org.springframework.transaction.reactive.TransactionalOperator transactions) {
+        this.transactions = transactions;
         this.createTaskUseCase = createTaskUseCase;
         this.assignTaskUseCase = assignTaskUseCase;
         this.reassignTaskUseCase = reassignTaskUseCase;
@@ -92,6 +94,7 @@ public class TaskHandler {
                         .flatMap(response -> ServerResponse.status(HttpStatus.CREATED)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .bodyValue(response)))
+                .as(transactions::transactional)
                 .onErrorResume(taskErrorHandler::handle);
     }
 
@@ -133,6 +136,7 @@ public class TaskHandler {
                         .flatMap(response -> ServerResponse.ok()
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .bodyValue(response)))
+                .as(transactions::transactional)
                 .onErrorResume(taskErrorHandler::handle);
     }
 
@@ -146,6 +150,7 @@ public class TaskHandler {
                         .flatMap(response -> ServerResponse.ok()
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .bodyValue(response)))
+                .as(transactions::transactional)
                 .onErrorResume(taskErrorHandler::handle);
     }
 
@@ -219,8 +224,9 @@ public class TaskHandler {
     }
 
     private Mono<String> actorEmail(ServerRequest serverRequest) {
-        return taskRequestValidator.requireActorEmail(
-                serverRequest.headers().firstHeader(TaskRoute.ACTOR_EMAIL_HEADER));
+        return serverRequest.principal().map(java.security.Principal::getName)
+                .switchIfEmpty(Mono.error(new co.com.compira.model.common.error.CompiraException(
+                        "SEC_001", "Autenticación requerida", co.com.compira.model.common.error.ErrorCategory.UNAUTHORIZED)));
     }
 
     private Mono<UUID> taskIdMono(ServerRequest serverRequest) {

@@ -7,5 +7,5 @@ public record CreateTaskCommand(
         String title,
         String description,
         OffsetDateTime dueDate,
-        String responsibleEmail) {
+        String responsibleEmail, java.util.UUID teamId) {
 }

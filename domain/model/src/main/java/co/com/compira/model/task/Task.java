@@ -16,7 +16,7 @@ public record Task(
 
     public boolean isOverdue(OffsetDateTime reference) {
         return dueDate != null
-                && dueDate.isBefore(reference)
+                && !dueDate.isAfter(reference)
                 && (status == TaskStatus.PENDING || status == TaskStatus.IN_PROGRESS || status == TaskStatus.DELAYED);
     }
 }

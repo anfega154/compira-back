@@ -19,7 +19,7 @@ public interface TaskRepositoryGateway {
 
     Flux<Task> findByResponsible(UUID responsibleUserId);
 
-    Flux<Task> findByCreator(UUID createdByUserId);
+    Flux<Task> findByCoordinator(UUID createdByUserId);
 
     Flux<Task> findAll();
 

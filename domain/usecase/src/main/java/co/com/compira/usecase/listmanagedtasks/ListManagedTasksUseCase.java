@@ -39,7 +39,7 @@ public class ListManagedTasksUseCase {
             return taskRepositoryGateway.findAll();
         }
         if (actor.hasRole(RoleCode.COORDINATOR.name())) {
-            return taskRepositoryGateway.findByCreator(actor.id());
+            return taskRepositoryGateway.findByCoordinator(actor.id());
         }
         return Flux.error(new CompiraException(
                 TaskErrorCode.ACTOR_NOT_COORDINATOR,

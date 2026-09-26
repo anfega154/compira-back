@@ -18,6 +18,11 @@ public final class TaskTestData {
     public static final String COLLABORATOR_EMAIL = "collaborator@compira.co";
     public static final String OTHER_COLLABORATOR_EMAIL = "other.collaborator@compira.co";
 
+    public static final UUID TEAM_ID = UUID.fromString("55555555-5555-5555-5555-555555555555");
+    public static co.com.compira.model.team.Team team() {
+        return new co.com.compira.model.team.Team(TEAM_ID, "Operaciones", COORDINATOR_ID, COORDINATOR_EMAIL);
+    }
+
     private TaskTestData() {
     }
 

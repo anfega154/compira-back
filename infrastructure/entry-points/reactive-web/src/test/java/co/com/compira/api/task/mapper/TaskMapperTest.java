@@ -27,7 +27,7 @@ class TaskMapperTest {
 
     @Test
     void shouldMapCreateRequestToCommand() {
-        CreateTaskRequest request = new CreateTaskRequest("Titulo", "Detalle", TaskApiTestData.referenceDate(), "colab@compira.co");
+        CreateTaskRequest request = new CreateTaskRequest("Titulo", "Detalle", TaskApiTestData.referenceDate(), "colab@compira.co", java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
         CreateTaskCommand command = requestMapper.toCommand(TaskApiTestData.ACTOR_EMAIL, request);
 
         assertEquals(TaskApiTestData.ACTOR_EMAIL, command.actorEmail());

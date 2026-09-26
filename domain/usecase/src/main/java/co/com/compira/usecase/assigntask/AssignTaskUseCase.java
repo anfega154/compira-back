@@ -13,23 +13,30 @@ import co.com.compira.model.task.TaskUser;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
 import reactor.core.publisher.Mono;
+import co.com.compira.usecase.teams.TeamsUseCase;
+import co.com.compira.usecase.notifications.TaskNotificationsUseCase;
+import co.com.compira.model.notification.NotificationType;
 
 public class AssignTaskUseCase {
+    private final TaskNotificationsUseCase notifications;
+    private final TeamsUseCase teams;
     private final TaskRepositoryGateway taskRepositoryGateway;
     private final TaskAuthorization taskAuthorization;
 
     public AssignTaskUseCase(TaskRepositoryGateway taskRepositoryGateway,
-                             TaskUserDirectoryGateway taskUserDirectoryGateway) {
+                             TaskUserDirectoryGateway taskUserDirectoryGateway, TaskNotificationsUseCase notifications, TeamsUseCase teams) {
+        this.notifications = notifications;
+        this.teams = teams;
         this.taskRepositoryGateway = taskRepositoryGateway;
         this.taskAuthorization = new TaskAuthorization(taskUserDirectoryGateway);
     }
 
     public Mono<Task> execute(AssignTaskCommand command) {
         return taskAuthorization.requireCoordinator(command.actorEmail())
-                .flatMap(coordinator -> loadTask(command.taskId())
+                .flatMap(coordinator -> teams.requireTaskCoordinator(command.taskId(), coordinator.id()).then(loadTask(command.taskId()))
                         .flatMap(task -> ensureNotClosed(task)
                                 .then(Mono.defer(() -> taskAuthorization.resolveCollaborator(command.responsibleEmail())))
-                                .flatMap(responsible -> assign(task, coordinator, responsible))));
+                                .flatMap(responsible -> teams.requireTaskMember(task.id(), responsible.id()).then(Mono.defer(() -> assign(task, coordinator, responsible))))));
     }
 
     private Mono<Task> assign(Task task, TaskUser coordinator, TaskUser responsible) {
@@ -43,6 +50,7 @@ public class AssignTaskUseCase {
                                 responsible.email(),
                                 null,
                                 null))
+                        .flatMap(event -> notifications.assignment(updatedTask, responsible.id(), NotificationType.ASSIGNED, event.id()))
                         .thenReturn(updatedTask));
     }
 
