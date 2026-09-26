@@ -19,3 +19,5 @@ databaseChangeLog:
       file: db/changelog/create_table_task_history.yaml
   - include:
       file: db/changelog/create_notifications.yaml
+  - include:
+      file: db/changelog/create_insert_user_default.yaml

@@ -52,10 +52,9 @@ Levantar PostgreSQL:
 docker compose -f deployment/docker-compose.yml up -d
 ```
 
-Scripts de inicialización:
-
-- `/Users/andresganan/Desktop/COMPIRA/compira-back/deployment/postgres/init/01-create-companies.sql`
-- `/Users/andresganan/Desktop/COMPIRA/compira-back/deployment/postgres/init/02-create-auth-schema.sql`
+El esquema se inicializa con Liquibase desde
+`infrastructure/driven-adapters/r2dbc-postgresql/src/main/resources/db/db.changelog-master.yaml`
+cuando `LIQUIBASE_ENABLED=true`.
 
 ## Terraform Cognito
 
