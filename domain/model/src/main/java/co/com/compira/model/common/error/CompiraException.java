@@ -10,6 +10,12 @@ public class CompiraException extends RuntimeException {
         this.errorCategory = errorCategory;
     }
 
+    public CompiraException(String code, String message, ErrorCategory errorCategory, Throwable cause) {
+        super(message, cause);
+        this.code = code;
+        this.errorCategory = errorCategory;
+    }
+
     public String getCode() {
         return code;
     }

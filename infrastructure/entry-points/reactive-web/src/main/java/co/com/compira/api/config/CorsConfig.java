@@ -13,6 +13,7 @@ import java.util.List;
 public class CorsConfig {
 
     @Bean
+    @org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
     CorsWebFilter corsWebFilter(
             @Value("${cors.allowed-origins}") List<String> origins
     ) {

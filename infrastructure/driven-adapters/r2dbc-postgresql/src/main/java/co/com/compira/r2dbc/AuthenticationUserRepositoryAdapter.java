@@ -68,6 +68,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
             WHERE code = :roleCode
             ON CONFLICT (user_id, role_id) DO NOTHING
             """;
+    private static final String SELECT_USER_BY_SUB_QUERY = "SELECT * FROM users WHERE cognito_sub = :cognitoSub";
     private static final String SELECT_USER_BY_EMAIL_QUERY = "SELECT * FROM users WHERE email = :email";
     private static final String SELECT_ROLES_BY_USER_ID_QUERY = """
             SELECT r.code
@@ -124,6 +125,12 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
                 .flatMap(row -> assignRole((UUID) row.get("id"), resolveRoleCode(command))
                         .then(buildApplicationUser(row)))
                 .as(transactionalOperator::transactional);
+    }
+
+    @Override
+    public Mono<ApplicationUser> findByCognitoSub(String cognitoSub) {
+        return databaseClient.sql(SELECT_USER_BY_SUB_QUERY)
+                .bind("cognitoSub", cognitoSub).fetch().one().flatMap(this::buildApplicationUser);
     }
 
     @Override

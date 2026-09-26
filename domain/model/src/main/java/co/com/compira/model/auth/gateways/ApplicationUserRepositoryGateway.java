@@ -7,6 +7,8 @@ import reactor.core.publisher.Mono;
 public interface ApplicationUserRepositoryGateway {
     Mono<ApplicationUser> createPendingUser(RegisterUserCommand command, String cognitoSub);
 
+    Mono<ApplicationUser> findByCognitoSub(String cognitoSub);
+
     Mono<ApplicationUser> findByEmail(String email);
 
     Mono<ApplicationUser> activateUser(String email);
