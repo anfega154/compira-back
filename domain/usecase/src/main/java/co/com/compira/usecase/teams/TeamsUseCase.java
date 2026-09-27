@@ -47,8 +47,8 @@ public class TeamsUseCase {
     }
 
     public Mono<Void> addMember(String email, UUID teamId, String memberEmail) {
-        return requireAdministrator(email).then(requireTeam(teamId))
-                .then(authorization.resolveCollaborator(memberEmail))
+        return requireTeamLinkingAccess(email, teamId)
+                .flatMap(team -> authorization.resolveCollaborator(memberEmail))
                 .flatMap(member -> teams.findByMemberId(member.id())
                         .flatMap(existing -> existing.id().equals(teamId) ? Mono.just(existing)
                                 : Mono.<Team>error(error(ALREADY_MEMBER, ErrorCategory.CONFLICT)))
@@ -57,9 +57,10 @@ public class TeamsUseCase {
     }
 
     public Mono<Void> linkExistingTask(String email, UUID taskId, UUID teamId) {
-        return requireAdministrator(email).then(requireTeam(teamId)).then(tasks.findById(taskId))
+        return requireTeamLinkingAccess(email, teamId).flatMap(team -> tasks.findById(taskId))
                 .switchIfEmpty(Mono.error(error(TASK_NOT_FOUND, ErrorCategory.NOT_FOUND)))
-                .flatMap(task -> requireMember(teamId, task.responsibleUserId()).then(teams.linkTask(taskId, teamId)));
+                .flatMap(task -> requireMember(teamId, task.responsibleUserId())
+                        .then(Mono.defer(() -> teams.linkTask(taskId, teamId))));
     }
 
     public Mono<Team> requireCoordinator(UUID teamId, UUID coordinatorId) {
@@ -105,6 +106,13 @@ public class TeamsUseCase {
     private Mono<Void> requireAdministrator(String email) {
         return authorization.requireActor(email).filter(user -> user.hasRole(RoleCode.ADMINISTRATOR.name()))
                 .switchIfEmpty(Mono.error(error(FORBIDDEN, ErrorCategory.FORBIDDEN))).then();
+    }
+
+    private Mono<Team> requireTeamLinkingAccess(String email, UUID teamId) {
+        return authorization.requireActor(email).flatMap(actor -> requireTeam(teamId)
+                .filter(team -> actor.hasRole(RoleCode.ADMINISTRATOR.name())
+                        || actor.hasRole(RoleCode.COORDINATOR.name()) && team.coordinatorUserId().equals(actor.id()))
+                .switchIfEmpty(Mono.error(error(FORBIDDEN, ErrorCategory.FORBIDDEN))));
     }
 
     private CompiraException error(String message, ErrorCategory category) {

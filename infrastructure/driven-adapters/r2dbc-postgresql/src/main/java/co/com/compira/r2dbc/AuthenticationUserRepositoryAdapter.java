@@ -29,7 +29,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
     private static final String LOG_CREATE_PENDING_USER = "Persistiendo perfil local pendiente. email={} cognitoSub={}";
     private static final String LOG_FIND_USER = "Consultando perfil local por correo. email={}";
     private static final String LOG_ACTIVATE_USER = "Activando perfil local. email={}";
-    private static final String LOG_UPDATE_LAST_LOGIN = "Actualizando último ingreso local. email={}";
+    private static final String LOG_COMPLETE_LOGIN = "Completando ingreso y activación local. email={}";
     private static final String LOG_DELETE_USER = "Eliminando perfil local. email={}";
     private static final String LOG_ASSIGN_ROLE = "Asignando rol local. userId={} role={}";
     private static final String LOG_BUILD_USER = "Perfil local cargado. email={} userId={}";
@@ -84,11 +84,12 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
             WHERE email = :email
             RETURNING *
             """;
-    private static final String UPDATE_LAST_LOGIN_QUERY = """
+    private static final String COMPLETE_LOGIN_QUERY = """
             UPDATE users
-            SET last_login_at = CURRENT_TIMESTAMP,
+            SET status = :activeStatus,
+                last_login_at = CURRENT_TIMESTAMP,
                 updated_at = CURRENT_TIMESTAMP
-            WHERE email = :email
+            WHERE email = :email AND status IN (:pendingStatus, :activeStatus)
             RETURNING *
             """;
     private static final String DELETE_USER_QUERY = "DELETE FROM users WHERE email = :email";
@@ -156,16 +157,18 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
     }
 
     @Override
-    public Mono<ApplicationUser> updateLastLogin(String email) {
-        LOGGER.info(LOG_UPDATE_LAST_LOGIN, AuthenticationLogSanitizer.maskEmail(email));
-        return databaseClient.sql(UPDATE_LAST_LOGIN_QUERY)
+    public Mono<ApplicationUser> completeLogin(String email) {
+        LOGGER.info(LOG_COMPLETE_LOGIN, AuthenticationLogSanitizer.maskEmail(email));
+        return databaseClient.sql(COMPLETE_LOGIN_QUERY)
                 .bind("email", email)
+                .bind("activeStatus", UserStatus.ACTIVE.name())
+                .bind("pendingStatus", UserStatus.PENDING_CONFIRMATION.name())
                 .fetch()
                 .one()
                 .switchIfEmpty(Mono.error(new CompiraException(
-                        AuthenticationErrorCode.LOCAL_USER_NOT_FOUND,
-                        AuthenticationMessage.LOCAL_USER_NOT_FOUND,
-                        ErrorCategory.NOT_FOUND)))
+                        AuthenticationErrorCode.INVALID_CREDENTIALS,
+                        AuthenticationMessage.INVALID_CREDENTIALS,
+                        ErrorCategory.UNAUTHORIZED)))
                 .flatMap(this::buildApplicationUser);
     }
 

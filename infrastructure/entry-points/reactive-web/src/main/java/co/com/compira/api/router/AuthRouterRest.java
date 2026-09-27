@@ -31,7 +31,9 @@ public class AuthRouterRest {
                             summary = "Registrar un usuario (solo administrador)",
                             responses = {
                                     @ApiResponse(responseCode = "201", description = "Usuario registrado", content = @Content(schema = @Schema(implementation = UserRegistrationResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida")
+                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+                                    @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+                                    @ApiResponse(responseCode = "403", description = "Requiere rol Administrador")
                             }
                     )
             ),
@@ -42,6 +44,7 @@ public class AuthRouterRest {
                     method = RequestMethod.POST,
                     operation = @Operation(
                             summary = "Autenticar un usuario",
+                            description = "Al completar la autenticación, activa el perfil local pendiente y registra el ingreso. Las cuentas deshabilitadas no pueden iniciar sesión.",
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Resultado de autenticación", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
                                     @ApiResponse(responseCode = "401", description = "Autenticación fallida")
@@ -67,9 +70,11 @@ public class AuthRouterRest {
                     method = RequestMethod.POST,
                     operation = @Operation(
                             summary = "Responder un reto de autenticación (OTP o cambio de contraseña obligatorio)",
+                            description = "El perfil local pendiente se activa únicamente cuando no quedan retos y la autenticación se completa. Las cuentas deshabilitadas permanecen bloqueadas.",
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Resultado de autenticación", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Solicitud del reto inválida")
+                                    @ApiResponse(responseCode = "400", description = "Solicitud del reto inválida"),
+                                    @ApiResponse(responseCode = "401", description = "Autenticación fallida")
                             }
                     )
             ),
@@ -118,9 +123,11 @@ public class AuthRouterRest {
                     beanMethod = "deleteUser",
                     method = RequestMethod.DELETE,
                     operation = @Operation(
-                            summary = "Eliminar un usuario",
+                            summary = "Eliminar un usuario (solo administrador)",
                             responses = {
                                     @ApiResponse(responseCode = "204", description = "Usuario eliminado"),
+                                    @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+                                    @ApiResponse(responseCode = "403", description = "Requiere rol Administrador"),
                                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
                             }
                     )

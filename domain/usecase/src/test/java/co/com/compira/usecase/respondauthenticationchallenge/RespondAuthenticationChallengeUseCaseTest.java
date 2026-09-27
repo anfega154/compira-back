@@ -1,5 +1,7 @@
 package co.com.compira.usecase.respondauthenticationchallenge;
 
+import co.com.compira.model.auth.UserStatus;
+
 import co.com.compira.model.auth.AuthenticationChallenge;
 import co.com.compira.model.auth.AuthenticationChallengeName;
 import co.com.compira.model.auth.AuthenticationResult;
@@ -31,10 +33,10 @@ class RespondAuthenticationChallengeUseCaseTest {
     private final RespondAuthenticationChallengeUseCase useCase = new RespondAuthenticationChallengeUseCase(authenticationGateway, applicationUserRepositoryGateway);
 
     @Test
-    void shouldUpdateLastLoginWhenChallengeCompletesWithAuthentication() {
+    void shouldCompleteLoginWhenChallengeCompletesWithAuthentication() {
         when(authenticationGateway.respondToChallenge(AuthenticationTestData.respondAuthenticationChallengeCommand()))
                 .thenReturn(Mono.just(AuthenticationTestData.authenticatedResult()));
-        when(applicationUserRepositoryGateway.updateLastLogin("john.doe@compira.co"))
+        when(applicationUserRepositoryGateway.completeLogin("john.doe@compira.co"))
                 .thenReturn(Mono.just(AuthenticationTestData.activeApplicationUser()));
 
         StepVerifier.create(useCase.execute(AuthenticationTestData.respondAuthenticationChallengeCommand()))
@@ -42,10 +44,11 @@ class RespondAuthenticationChallengeUseCaseTest {
                     Assertions.assertEquals(AuthenticationStatus.AUTHENTICATED, result.status());
                     Assertions.assertEquals("john.doe@compira.co", result.user().user().email());
                     Assertions.assertNotNull(result.tokens());
+                    Assertions.assertEquals(UserStatus.ACTIVE, result.user().status());
                 })
                 .verifyComplete();
 
-        verify(applicationUserRepositoryGateway).updateLastLogin("john.doe@compira.co");
+        verify(applicationUserRepositoryGateway).completeLogin("john.doe@compira.co");
     }
 
     @Test
@@ -78,7 +81,7 @@ class RespondAuthenticationChallengeUseCaseTest {
                 })
                 .verifyComplete();
 
-        verify(applicationUserRepositoryGateway, never()).updateLastLogin(any());
+        verify(applicationUserRepositoryGateway, never()).completeLogin(any());
     }
 
     @Test
@@ -93,7 +96,7 @@ class RespondAuthenticationChallengeUseCaseTest {
                         && ((CompiraException) error).getCode().equals("AUTH_003"))
                 .verify();
 
-        verify(applicationUserRepositoryGateway, never()).updateLastLogin(any());
+        verify(applicationUserRepositoryGateway, never()).completeLogin(any());
     }
 
     @Test
@@ -116,7 +119,7 @@ class RespondAuthenticationChallengeUseCaseTest {
                         && ((CompiraException) error).getCode().equals("AUTH_005"))
                 .verify();
 
-        verify(applicationUserRepositoryGateway, never()).updateLastLogin(any());
+        verify(applicationUserRepositoryGateway, never()).completeLogin(any());
     }
 
     @Test
@@ -131,17 +134,29 @@ class RespondAuthenticationChallengeUseCaseTest {
 
         when(authenticationGateway.respondToChallenge(newPasswordCommand))
                 .thenReturn(Mono.just(AuthenticationTestData.authenticatedResult()));
-        when(applicationUserRepositoryGateway.updateLastLogin("john.doe@compira.co"))
+        when(applicationUserRepositoryGateway.completeLogin("john.doe@compira.co"))
                 .thenReturn(Mono.just(AuthenticationTestData.activeApplicationUser()));
 
         StepVerifier.create(useCase.execute(newPasswordCommand))
                 .assertNext(result -> {
                     Assertions.assertEquals(AuthenticationStatus.AUTHENTICATED, result.status());
                     Assertions.assertNotNull(result.tokens());
+                    Assertions.assertEquals(UserStatus.ACTIVE, result.user().status());
                     Assertions.assertNotNull(result.user());
                 })
                 .verifyComplete();
 
-        verify(applicationUserRepositoryGateway).updateLastLogin("john.doe@compira.co");
+        verify(applicationUserRepositoryGateway).completeLogin("john.doe@compira.co");
+    }
+
+    @Test
+    void shouldNotReturnTokensWhenLocalLoginCompletionFails() {
+        when(authenticationGateway.respondToChallenge(AuthenticationTestData.respondAuthenticationChallengeCommand()))
+                .thenReturn(Mono.just(AuthenticationTestData.authenticatedResult()));
+        when(applicationUserRepositoryGateway.completeLogin(AuthenticationTestData.loginCommand().username()))
+                .thenReturn(Mono.error(new IllegalStateException()));
+
+        StepVerifier.create(useCase.execute(AuthenticationTestData.respondAuthenticationChallengeCommand()))
+                .expectError(IllegalStateException.class).verify();
     }
 }

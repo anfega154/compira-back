@@ -150,7 +150,7 @@ class AuthenticationUserRepositoryAdapterTest {
     }
 
     @Test
-    void shouldUpdateLastLogin() {
+    void shouldCompleteLogin() {
         Map<String, Object> userRow = buildUserRow(UserStatus.ACTIVE);
         userRow.put("last_login_at", NOW);
         GenericExecuteSpec updateSpec = mockExecuteSpec(userRow);
@@ -160,7 +160,7 @@ class AuthenticationUserRepositoryAdapterTest {
                 .thenReturn(updateSpec)
                 .thenReturn(rolesQuerySpec);
 
-        StepVerifier.create(adapter.updateLastLogin(EMAIL))
+        StepVerifier.create(adapter.completeLogin(EMAIL))
                 .assertNext(user -> {
                     assertEquals(EMAIL, user.user().email());
                     assertEquals(NOW, user.lastLoginAt());
@@ -170,14 +170,14 @@ class AuthenticationUserRepositoryAdapterTest {
     }
 
     @Test
-    void shouldFailUpdateLastLoginWhenNotFound() {
+    void shouldFailCompleteLoginWhenNotFound() {
         GenericExecuteSpec emptySpec = mockExecuteSpecEmpty();
 
         when(databaseClient.sql(anyString())).thenReturn(emptySpec);
 
-        StepVerifier.create(adapter.updateLastLogin("unknown@compira.co"))
+        StepVerifier.create(adapter.completeLogin("unknown@compira.co"))
                 .expectErrorMatches(error -> error instanceof CompiraException
-                        && "AUTH_010".equals(((CompiraException) error).getCode()))
+                        && "AUTH_005".equals(((CompiraException) error).getCode()))
                 .verify();
     }
 
