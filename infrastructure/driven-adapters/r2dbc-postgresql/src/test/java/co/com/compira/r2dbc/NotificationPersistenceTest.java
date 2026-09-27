@@ -115,4 +115,13 @@ class NotificationPersistenceTest {
                 .assertNext(configuration -> { assertEquals("America/Bogota", configuration.timeZone()); assertTrue(configuration.notificationsEnabled()); })
                 .verifyComplete();
     }
+    @Test
+    void rejectsRelinkingTasksThatAlreadyHaveATeam() {
+        StepVerifier.create(teams.linkTask(TASK, TEAM))
+                .expectErrorMatches(error -> error instanceof co.com.compira.model.common.error.CompiraException failure
+                        && failure.getErrorCategory() == co.com.compira.model.common.error.ErrorCategory.CONFLICT).verify();
+        StepVerifier.create(teams.findByTaskId(TASK))
+                .assertNext(team -> assertEquals(TEAM, team.id())).verifyComplete();
+    }
+
 }

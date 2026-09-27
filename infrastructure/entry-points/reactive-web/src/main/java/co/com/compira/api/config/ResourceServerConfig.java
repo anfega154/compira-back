@@ -69,6 +69,7 @@ public class ResourceServerConfig {
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.OPTIONS, DESCENDANTS).permitAll()
                         .pathMatchers(HttpMethod.GET, TeamHandler.BASE).hasAnyAuthority(ADMINISTRATOR, COORDINATOR)
+                        .pathMatchers(HttpMethod.POST, TeamHandler.MEMBERS, TeamHandler.TASKS).hasAnyAuthority(ADMINISTRATOR, COORDINATOR)
                         .pathMatchers(TeamHandler.BASE, TeamHandler.BASE + DESCENDANTS).hasAuthority(ADMINISTRATOR)
                         .pathMatchers(AUTH + AuthenticationRoute.REGISTER, AUTH + AuthenticationRoute.USERS, OrganizationSettingsHandler.BASE)
                         .hasAuthority(ADMINISTRATOR)

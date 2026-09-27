@@ -23,6 +23,11 @@ public final class TaskTestData {
         return new co.com.compira.model.team.Team(TEAM_ID, "Operaciones", COORDINATOR_ID, COORDINATOR_EMAIL);
     }
 
+    public static co.com.compira.model.team.Team otherTeam() {
+        return new co.com.compira.model.team.Team(UUID.fromString("88888888-8888-8888-8888-888888888888"),
+                "Otro equipo", COORDINATOR_ID, COORDINATOR_EMAIL);
+    }
+
     private TaskTestData() {
     }
 

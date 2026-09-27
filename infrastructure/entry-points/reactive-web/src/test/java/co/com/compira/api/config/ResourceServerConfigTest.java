@@ -1,6 +1,10 @@
 package co.com.compira.api.config;
 
 import co.com.compira.model.auth.UserStatus;
+import co.com.compira.api.team.TeamHandler;
+import co.com.compira.model.auth.RoleCode;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import co.com.compira.model.auth.gateways.ApplicationUserRepositoryGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,6 +78,66 @@ class ResourceServerConfigTest {
                 .exchange().expectStatus().isOk();
     }
 
+    @ParameterizedTest
+    @EnumSource(value = RoleCode.class, names = {"COORDINATOR", "COLLABORATOR"})
+    void deniesUserManagementForNonAdministrators(RoleCode role) {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
+        client.post().uri("/api/v1/auth/register").headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+        client.delete().uri("/api/v1/auth/users").headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+    }
+
+    @Test
+    void allowsUserManagementForActiveAdministrators() {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user("ADMINISTRATOR", UserStatus.ACTIVE)));
+        client.post().uri("/api/v1/auth/register").headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isOk();
+        client.delete().uri("/api/v1/auth/users").headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isOk();
+    }
+
+    @Test
+    void deniesPendingAccountsEvenWithValidTokens() {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user("COLLABORATOR", UserStatus.PENDING_CONFIRMATION)));
+        client.get().uri("/api/v1/notifications").headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isUnauthorized();
+    }
+
+    @ParameterizedTest
+    @EnumSource(value = RoleCode.class, names = {"ADMINISTRATOR", "COORDINATOR"})
+    void allowsTeamLinkingEndpointsForAdministratorsAndCoordinators(RoleCode role) {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
+        client.post().uri(TeamHandler.MEMBERS, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isNoContent();
+        client.post().uri(TeamHandler.TASKS, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isNoContent();
+    }
+
+    @Test
+    void deniesTeamLinkingForCollaboratorsAndAnonymousRequests() {
+        client.post().uri(TeamHandler.MEMBERS, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+        client.post().uri(TeamHandler.TASKS, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+        client.post().uri(TeamHandler.MEMBERS, SecurityTestData.SUBJECT).exchange().expectStatus().isUnauthorized();
+        client.post().uri(TeamHandler.TASKS, SecurityTestData.SUBJECT).exchange().expectStatus().isUnauthorized();
+    }
+
+    @Test
+    void deniesCoordinatorTeamCreationAndCoordinatorReplacement() {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user("COORDINATOR", UserStatus.ACTIVE)));
+        client.post().uri(TeamHandler.BASE).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+        client.put().uri(TeamHandler.COORDINATOR, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+    }
+
     @Test
     void validatesIssuerClientAccessTokenUseAndExpiration() {
         var validator = new ResourceServerConfig().cognitoTokenValidator("https://issuer.example", "expected-client");
@@ -103,6 +167,10 @@ class ResourceServerConfigTest {
         RouterFunction<ServerResponse> routes() {
             return RouterFunctions.route().GET("/api/v1/notifications", request -> request.principal()
                             .flatMap(principal -> ServerResponse.ok().bodyValue(principal.getName())))
+                    .POST(TeamHandler.MEMBERS, request -> ServerResponse.noContent().build())
+                    .POST(TeamHandler.TASKS, request -> ServerResponse.noContent().build())
+                    .POST("/api/v1/auth/register", request -> ServerResponse.ok().build())
+                    .DELETE("/api/v1/auth/users", request -> ServerResponse.ok().build())
                     .PUT("/api/v1/organization/settings", request -> ServerResponse.ok().build()).build();
         }
     }
