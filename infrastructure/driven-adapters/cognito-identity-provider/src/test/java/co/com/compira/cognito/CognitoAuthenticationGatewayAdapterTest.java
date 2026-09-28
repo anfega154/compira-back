@@ -122,7 +122,8 @@ class CognitoAuthenticationGatewayAdapterTest {
 
         StepVerifier.create(adapter.registerUser(command))
                 .expectErrorMatches(error -> error instanceof CompiraException
-                        && "AUTH_002".equals(((CompiraException) error).getCode()))
+                        && "AUTH_002".equals(((CompiraException) error).getCode())
+                        && "La contraseña no cumple con la política de seguridad de Compira.".equals(error.getMessage()))
                 .verify();
     }
 
@@ -200,7 +201,22 @@ class CognitoAuthenticationGatewayAdapterTest {
         StepVerifier.create(adapter.login(new LoginCommand("john@compira.co", "wrong")))
                 .expectErrorMatches(error -> error instanceof CompiraException
                         && "AUTH_005".equals(((CompiraException) error).getCode())
+                        && "Correo o contraseña incorrectos.".equals(error.getMessage())
                         && ErrorCategory.UNAUTHORIZED.equals(((CompiraException) error).getErrorCategory()))
+                .verify();
+    }
+
+
+    @Test
+    void shouldHideMissingAccountOnLogin() {
+        when(cognitoClient.initiateAuth(any(software.amazon.awssdk.services.cognitoidentityprovider.model.InitiateAuthRequest.class)))
+                .thenReturn(CompletableFuture.failedFuture(UserNotFoundException.builder().message("not found").build()));
+
+        StepVerifier.create(adapter.login(new LoginCommand("missing@compira.co", "wrong")))
+                .expectErrorMatches(error -> error instanceof CompiraException exception
+                        && "AUTH_005".equals(exception.getCode())
+                        && "Correo o contraseña incorrectos.".equals(exception.getMessage())
+                        && ErrorCategory.UNAUTHORIZED.equals(exception.getErrorCategory()))
                 .verify();
     }
 

@@ -19,6 +19,10 @@ public final class SecurityTestData {
                 user("COORDINATOR", UserStatus.ACTIVE).user().id(), EMAIL);
     }
 
+    public static Jwt expiredToken() {
+        return claims("https://issuer.example", "expected-client", "access", Instant.now().minusSeconds(300));
+    }
+
     public static Jwt token() {
         return Jwt.withTokenValue("valid-token").header("alg", "RS256").subject(SUBJECT)
                 .issuedAt(Instant.now()).expiresAt(Instant.now().plusSeconds(3600)).build();

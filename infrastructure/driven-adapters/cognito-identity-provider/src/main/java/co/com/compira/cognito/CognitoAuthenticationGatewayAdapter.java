@@ -327,10 +327,14 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
         if (cause instanceof CompiraException) {
             return cause;
         }
+        if (OPERATION_LOGIN.equals(operation) && (cause instanceof UserNotFoundException || cause instanceof NotAuthorizedException)) {
+            return new CompiraException(AuthenticationErrorCode.INVALID_CREDENTIALS,
+                    AuthenticationMessage.INVALID_CREDENTIALS, ErrorCategory.UNAUTHORIZED, cause);
+        }
         CompiraException mappedException = cause instanceof UsernameExistsException
                 ? new CompiraException(AuthenticationErrorCode.USER_ALREADY_EXISTS, AuthenticationMessage.USER_ALREADY_EXISTS, ErrorCategory.CONFLICT)
                 : cause instanceof InvalidPasswordException
-                ? new CompiraException(AuthenticationErrorCode.INVALID_PASSWORD, AuthenticationMessage.INVALID_PASSWORD, ErrorCategory.BAD_REQUEST)
+                ? new CompiraException(AuthenticationErrorCode.INVALID_PASSWORD, AuthenticationMessage.INVALID_PASSWORD, ErrorCategory.BAD_REQUEST, cause)
                 : cause instanceof CodeMismatchException
                 ? new CompiraException(AuthenticationErrorCode.INVALID_CONFIRMATION_CODE, AuthenticationMessage.INVALID_CONFIRMATION_CODE, ErrorCategory.BAD_REQUEST)
                 : cause instanceof ExpiredCodeException
