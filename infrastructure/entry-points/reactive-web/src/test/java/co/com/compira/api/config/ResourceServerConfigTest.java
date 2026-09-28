@@ -61,6 +61,14 @@ class ResourceServerConfigTest {
     }
 
     @Test
+    void rejectsExpiredJwtBeforeAccessingTheAccount() {
+        client.get().uri("/api/v1/notifications").headers(headers -> headers.setBearerAuth("expired-token"))
+                .exchange().expectStatus().isUnauthorized()
+                .expectHeader().valueMatches("WWW-Authenticate", ".*invalid_token.*");
+        verifyNoInteractions(users);
+    }
+
+    @Test
     void deniesDisabledAccounts() {
         when(users.findByCognitoSub(SecurityTestData.SUBJECT)).thenReturn(Mono.just(SecurityTestData.user("COLLABORATOR", UserStatus.DISABLED)));
         client.get().uri("/api/v1/notifications").headers(headers -> headers.setBearerAuth("valid-token"))
@@ -157,7 +165,16 @@ class ResourceServerConfigTest {
         ApplicationUserRepositoryGateway users() { return mock(ApplicationUserRepositoryGateway.class); }
         @Bean
         ReactiveJwtDecoder decoder() {
-            return token -> "valid-token".equals(token) ? Mono.just(SecurityTestData.token()) : Mono.error(new BadJwtException("Invalid token"));
+            return token -> {
+                if ("expired-token".equals(token)) {
+                    var validation = new ResourceServerConfig().cognitoTokenValidator("https://issuer.example", "expected-client")
+                            .validate(SecurityTestData.expiredToken());
+                    return validation.hasErrors()
+                            ? Mono.error(new org.springframework.security.oauth2.jwt.JwtValidationException("Expired token", validation.getErrors()))
+                            : Mono.just(SecurityTestData.expiredToken());
+                }
+                return "valid-token".equals(token) ? Mono.just(SecurityTestData.token()) : Mono.error(new BadJwtException("Invalid token"));
+            };
         }
         @Bean
         SecurityWebFilterChain security(ServerHttpSecurity http, ReactiveJwtDecoder decoder, ApplicationUserRepositoryGateway users) {

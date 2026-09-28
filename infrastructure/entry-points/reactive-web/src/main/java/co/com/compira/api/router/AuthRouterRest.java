@@ -46,8 +46,9 @@ public class AuthRouterRest {
                             summary = "Autenticar un usuario",
                             description = "Al completar la autenticación, activa el perfil local pendiente y registra el ingreso. Las cuentas deshabilitadas no pueden iniciar sesión.",
                             responses = {
+                                    @ApiResponse(responseCode = "400", description = "Correo inválido: requiere dirección completa con dominio y extensión"),
                                     @ApiResponse(responseCode = "200", description = "Resultado de autenticación", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
-                                    @ApiResponse(responseCode = "401", description = "Autenticación fallida")
+                                    @ApiResponse(responseCode = "401", description = "Correo o contraseña incorrectos; no distingue cuentas inexistentes")
                             }
                     )
             ),

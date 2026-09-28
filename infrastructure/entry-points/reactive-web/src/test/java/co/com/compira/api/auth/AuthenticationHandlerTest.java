@@ -15,6 +15,9 @@ import co.com.compira.usecase.startpasswordrecovery.StartPasswordRecoveryUseCase
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import static org.mockito.Mockito.verifyNoInteractions;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
@@ -92,6 +95,47 @@ class AuthenticationHandlerTest {
                 .expectBody()
                 .jsonPath("$.status").isEqualTo("AUTHENTICATED")
                 .jsonPath("$.tokens.accessToken").isEqualTo("access-token");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"user", "user@", "@gmail.com", "user@gmail", "user.com", "user@@gmail.com", "user@-gmail.com", "user@gmail..com"})
+    void rejectsIncompleteLoginEmailBeforeAuthentication(String email) {
+        webTestClient.post().uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(AuthenticationApiTestData.loginRequest(email))
+                .exchange().expectStatus().isBadRequest().expectBody()
+                .jsonPath("$.code").isEqualTo("AUTH_014")
+                .jsonPath("$.message").isEqualTo(AuthenticationValidationMessage.EMAIL_INVALID);
+        verifyNoInteractions(loginUseCase);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"user@gmail.com", "user@hotmail.com", "user.name@company.com", "user.name+test@gmail.com"})
+    void acceptsStandardLoginEmail(String email) {
+        when(loginUseCase.execute(any())).thenReturn(Mono.just(AuthenticationApiTestData.authenticatedResult()));
+        webTestClient.post().uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(AuthenticationApiTestData.loginRequest(email))
+                .exchange().expectStatus().isOk();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"registered@compira.co", "missing@compira.co"})
+    void returnsGenericUnauthorizedLoginResponse(String email) {
+        when(loginUseCase.execute(any())).thenReturn(Mono.error(AuthenticationApiTestData.invalidCredentials()));
+        webTestClient.post().uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(AuthenticationApiTestData.loginRequest(email))
+                .exchange().expectStatus().isUnauthorized().expectBody()
+                .jsonPath("$.code").isEqualTo("AUTH_005")
+                .jsonPath("$.message").isEqualTo("Correo o contraseña incorrectos.");
+    }
+
+    @Test
+    void returnsTechnologyAgnosticPasswordPolicyError() {
+        when(confirmPasswordRecoveryUseCase.execute(any())).thenReturn(Mono.error(AuthenticationApiTestData.invalidPassword()));
+        webTestClient.post().uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(AuthenticationApiTestData.confirmPasswordRecoveryRequest())
+                .exchange().expectStatus().isBadRequest().expectBody()
+                .jsonPath("$.code").isEqualTo("AUTH_002")
+                .jsonPath("$.message").isEqualTo("La contraseña no cumple con la política de seguridad de Compira.");
     }
 
     @Test
