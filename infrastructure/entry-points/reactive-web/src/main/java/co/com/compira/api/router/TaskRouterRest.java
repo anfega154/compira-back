@@ -15,6 +15,8 @@ public class TaskRouterRest {
         return RouterFunctions.route()
                 .path(TaskRoute.API_V1 + TaskRoute.TASKS_BASE, builder -> builder
                         .GET(TaskRoute.ASSIGNED, taskHandler::listAssignedTasks)
+                        .GET(TaskRoute.INDICATORS, taskHandler::getIndicators)
+                        .GET(TaskRoute.REPORTS, taskHandler::getReports)
                         .GET(TaskRoute.HISTORY, taskHandler::listHistory)
                         .GET(TaskRoute.OBSERVATIONS, taskHandler::listObservations)
                         .POST(TaskRoute.ASSIGN, taskHandler::assignTask)

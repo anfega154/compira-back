@@ -23,7 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class TaskMapperTest {
     private final TaskRequestMapper requestMapper = new TaskRequestMapper();
-    private final TaskResponseMapper responseMapper = new TaskResponseMapper();
+    private final TaskResponseMapper responseMapper = new TaskResponseMapper(
+            () -> java.time.OffsetDateTime.parse("2026-09-24T10:00:00Z"));
 
     @Test
     void shouldMapCreateRequestToCommand() {

@@ -64,12 +64,32 @@ class Module3HandlerTest {
     @Test
     void listsOnlyAuthenticatedRecipientAndMapsIdsAsStrings() {
         var id = SecurityTestData.user("COLLABORATOR", co.com.compira.model.auth.UserStatus.ACTIVE).user().id();
-        var notification = new TaskNotification(12L, id, "Informe", NotificationType.ASSIGNED, OffsetDateTime.parse("2026-09-26T12:00:00Z"));
+        var notification = new TaskNotification(12L, id, "Informe", NotificationType.ASSIGNED, OffsetDateTime.parse("2026-09-26T12:00:00Z"), null);
         when(notifications.list(SecurityTestData.EMAIL, 20)).thenReturn(Flux.just(notification));
         client.get().uri(NotificationHandler.BASE + "?before=20").exchange().expectStatus().isOk()
                 .expectHeader().valueEquals("Cache-Control", "no-store")
                 .expectBody().jsonPath("$[0].id").isEqualTo("12").jsonPath("$[0].type").isEqualTo("ASSIGNED");
         verify(notifications).list(SecurityTestData.EMAIL, 20);
+    }
+
+    @Test
+    void marksASingleNotificationAsRead() {
+        when(notifications.markRead(SecurityTestData.EMAIL, 12L)).thenReturn(Mono.empty());
+        client.post().uri(NotificationHandler.BASE + "/12/read").exchange().expectStatus().isNoContent();
+        verify(notifications).markRead(SecurityTestData.EMAIL, 12L);
+    }
+
+    @Test
+    void rejectsInvalidNotificationIdForRead() {
+        client.post().uri(NotificationHandler.BASE + "/abc/read").exchange().expectStatus().isBadRequest();
+        verify(notifications, never()).markRead(any(), anyLong());
+    }
+
+    @Test
+    void marksAllNotificationsAsRead() {
+        when(notifications.markAllRead(SecurityTestData.EMAIL)).thenReturn(Mono.empty());
+        client.post().uri(NotificationHandler.READ_ALL).exchange().expectStatus().isNoContent();
+        verify(notifications).markAllRead(SecurityTestData.EMAIL);
     }
 
     @Test

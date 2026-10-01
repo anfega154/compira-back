@@ -16,6 +16,7 @@ import java.util.UUID;
 public class TeamsUseCase {
     private static final String TEAM_ERROR = "TEAM_001";
     private static final String ALREADY_MEMBER = "El colaborador ya pertenece a otro equipo";
+    private static final String SAME_TEAM = "El colaborador ya pertenece al equipo destino";
     private static final String TASK_NOT_FOUND = "Tarea no encontrada";
     private static final String INVALID_MEMBER = "El responsable debe pertenecer al equipo de la tarea";
     private static final String FORBIDDEN = "No tienes acceso a este equipo";
@@ -53,6 +54,21 @@ public class TeamsUseCase {
                         .flatMap(existing -> existing.id().equals(teamId) ? Mono.just(existing)
                                 : Mono.<Team>error(error(ALREADY_MEMBER, ErrorCategory.CONFLICT)))
                         .switchIfEmpty(Mono.defer(() -> teams.addMember(teamId, member.id()).then(requireTeam(teamId)))))
+                .then();
+    }
+
+    public Mono<Void> reassignMember(String email, UUID teamId, String memberEmail) {
+        return requireAdministrator(email)
+                .then(Mono.defer(() -> requireTeam(teamId)))
+                .then(Mono.defer(() -> authorization.resolveCollaborator(memberEmail)))
+                .flatMap(member -> teams.findByMemberId(member.id())
+                        .flatMap(current -> current.id().equals(teamId)
+                                ? Mono.<Boolean>error(error(SAME_TEAM, ErrorCategory.CONFLICT))
+                                : teams.reassignMember(teamId, member.id()).thenReturn(Boolean.TRUE))
+                        .defaultIfEmpty(Boolean.FALSE)
+                        .flatMap(reassigned -> Boolean.TRUE.equals(reassigned)
+                                ? Mono.empty()
+                                : teams.addMember(teamId, member.id())))
                 .then();
     }
 

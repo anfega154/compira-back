@@ -7,6 +7,6 @@ import org.springframework.stereotype.Component;
 public class NotificationResponseMapper {
     public NotificationResponse toResponse(TaskNotification notification) {
         return new NotificationResponse(Long.toString(notification.id()), notification.taskId(), notification.taskTitle(),
-                notification.type().name(), notification.createdAt());
+                notification.type().name(), notification.createdAt(), notification.readAt());
     }
 }

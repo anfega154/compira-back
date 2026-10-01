@@ -2,7 +2,6 @@ package co.com.compira.usecase.listassignedtasks;
 
 import co.com.compira.model.task.Task;
 import co.com.compira.model.task.TaskStatus;
-import co.com.compira.model.task.gateways.TaskClockGateway;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
 import co.com.compira.usecase.task.TaskTestData;
@@ -17,23 +16,22 @@ import static org.mockito.Mockito.when;
 class ListAssignedTasksUseCaseTest {
     private final TaskRepositoryGateway taskRepositoryGateway = mock(TaskRepositoryGateway.class);
     private final TaskUserDirectoryGateway taskUserDirectoryGateway = mock(TaskUserDirectoryGateway.class);
-    private final TaskClockGateway taskClockGateway = () -> TaskTestData.now();
-    private final ListAssignedTasksUseCase useCase = new ListAssignedTasksUseCase(taskRepositoryGateway, taskUserDirectoryGateway, taskClockGateway);
+    private final ListAssignedTasksUseCase useCase = new ListAssignedTasksUseCase(taskRepositoryGateway, taskUserDirectoryGateway);
 
     @Test
-    void shouldReturnAssignedTasksWithDerivedDelayedStatus() {
+    void returnsAssignedTasksWithTheirPersistedStatus() {
         when(taskUserDirectoryGateway.findByEmail(TaskTestData.COLLABORATOR_EMAIL))
                 .thenReturn(Mono.just(TaskTestData.collaborator()));
         when(taskRepositoryGateway.findByResponsible(TaskTestData.COLLABORATOR_ID))
                 .thenReturn(Flux.just(TaskTestData.overdueTask(TaskStatus.IN_PROGRESS)));
 
         StepVerifier.create(useCase.execute(TaskTestData.COLLABORATOR_EMAIL))
-                .assertNext(task -> assertStatus(task, TaskStatus.DELAYED))
+                .assertNext(task -> assertStatus(task, TaskStatus.IN_PROGRESS))
                 .verifyComplete();
     }
 
     @Test
-    void shouldReturnAssignedTasksUnchangedWhenNotOverdue() {
+    void returnsAssignedTasksUnchangedWhenNotOverdue() {
         when(taskUserDirectoryGateway.findByEmail(TaskTestData.COLLABORATOR_EMAIL))
                 .thenReturn(Mono.just(TaskTestData.collaborator()));
         when(taskRepositoryGateway.findByResponsible(TaskTestData.COLLABORATOR_ID))

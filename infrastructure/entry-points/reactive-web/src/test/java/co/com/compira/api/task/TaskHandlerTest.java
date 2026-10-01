@@ -42,6 +42,8 @@ class TaskHandlerTest {
     private final ListManagedTasksUseCase listManagedTasksUseCase = mock(ListManagedTasksUseCase.class);
     private final GetTaskHistoryUseCase getTaskHistoryUseCase = mock(GetTaskHistoryUseCase.class);
     private final GetTaskObservationsUseCase getTaskObservationsUseCase = mock(GetTaskObservationsUseCase.class);
+    private final co.com.compira.usecase.gettaskindicators.GetTaskIndicatorsUseCase getTaskIndicatorsUseCase = mock(co.com.compira.usecase.gettaskindicators.GetTaskIndicatorsUseCase.class);
+    private final co.com.compira.usecase.gettaskreports.GetTaskReportsUseCase getTaskReportsUseCase = mock(co.com.compira.usecase.gettaskreports.GetTaskReportsUseCase.class);
     private final GetTaskUseCase getTaskUseCase = mock(GetTaskUseCase.class);
     private WebTestClient webTestClient;
 
@@ -65,10 +67,12 @@ class TaskHandlerTest {
                 listManagedTasksUseCase,
                 getTaskHistoryUseCase,
                 getTaskObservationsUseCase,
+                getTaskIndicatorsUseCase,
+                getTaskReportsUseCase,
                 getTaskUseCase,
                 new TaskRequestValidator(Validation.buildDefaultValidatorFactory().getValidator()),
                 new TaskRequestMapper(),
-                new TaskResponseMapper(),
+                new TaskResponseMapper(() -> java.time.OffsetDateTime.parse("2026-09-24T10:00:00Z")),
                 new TaskErrorHandler(), transactions);
 
         webTestClient = WebTestClient.bindToRouterFunction(new TaskRouterRest().taskRouterFunction(taskHandler, teams, new TaskErrorHandler()))

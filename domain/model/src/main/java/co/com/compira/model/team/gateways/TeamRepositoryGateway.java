@@ -14,5 +14,6 @@ public interface TeamRepositoryGateway {
     Mono<Team> create(String name, UUID coordinatorId);
     Mono<Team> changeCoordinator(UUID teamId, UUID coordinatorId);
     Mono<Void> addMember(UUID teamId, UUID memberId);
+    Mono<Void> reassignMember(UUID teamId, UUID memberId);
     Mono<Void> linkTask(UUID taskId, UUID teamId);
 }

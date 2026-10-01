@@ -32,6 +32,6 @@ public final class NotificationTestData {
     }
 
     public static TaskNotification notification() {
-        return new TaskNotification(1L, TaskTestData.TASK_ID, "Preparar informe", NotificationType.ASSIGNED, NOW);
+        return new TaskNotification(1L, TaskTestData.TASK_ID, "Preparar informe", NotificationType.ASSIGNED, NOW, null);
     }
 }

@@ -78,6 +78,13 @@ public class TeamRepositoryAdapter implements TeamRepositoryGateway {
                         MEMBER_CONFLICT_CODE, MEMBER_CONFLICT, ErrorCategory.CONFLICT, cause)).then();
     }
 
+    public Mono<Void> reassignMember(UUID teamId, UUID memberId) {
+        return database.sql("UPDATE team_members SET team_id = :teamId WHERE user_id = :memberId")
+                .bind(TEAM_ID, teamId).bind(MEMBER_ID, memberId).fetch().rowsUpdated()
+                .onErrorMap(DataIntegrityViolationException.class, cause -> new CompiraException(
+                        MEMBER_CONFLICT_CODE, MEMBER_CONFLICT, ErrorCategory.CONFLICT, cause)).then();
+    }
+
     public Mono<Void> linkTask(UUID taskId, UUID teamId) {
         return database.sql("INSERT INTO task_teams (task_id, team_id) VALUES (:taskId, :teamId)")
                 .bind(TASK_ID, taskId).bind(TEAM_ID, teamId).fetch().rowsUpdated()
