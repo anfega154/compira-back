@@ -61,8 +61,15 @@ public class NotificationRouterRest {
                     @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
                     @ApiResponse(responseCode = "403", description = "Acceso no permitido"), @ApiResponse(responseCode = "404", description = "Equipo, usuario o tarea no encontrado"),
                     @ApiResponse(responseCode = "409", description = "Vinculación o rol incompatible"), @ApiResponse(responseCode = "500", description = "Error interno")})),
-        @RouterOperation(path = TeamHandler.TASKS, method = RequestMethod.POST, beanClass = TeamHandler.class, beanMethod = "linkTask",
-            operation = @Operation(operationId = "linkTaskTeam", summary = "Vincular tarea existente sin equipo (Administrador o Coordinador del equipo)", security = @SecurityRequirement(name = "bearerAuth"),
+        @RouterOperation(path = TeamHandler.REASSIGN_MEMBERS, method = RequestMethod.POST, beanClass = TeamHandler.class, beanMethod = "reassignMember",
+            operation = @Operation(operationId = "reassignMemberTeam", summary = "Reasignar colaborador a otro equipo (HU-33, Administrador)", security = @SecurityRequirement(name = "bearerAuth"),
+                parameters = @Parameter(name = "teamId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "string", format = "uuid")),
+                requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = TeamHandler.UserEmailRequest.class))),
+                responses = {@ApiResponse(responseCode = "204", description = "Colaborador reasignado"),
+                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+                    @ApiResponse(responseCode = "403", description = "Acceso no permitido"), @ApiResponse(responseCode = "404", description = "Equipo o usuario no encontrado"),
+                    @ApiResponse(responseCode = "409", description = "Ya pertenece al equipo destino"), @ApiResponse(responseCode = "500", description = "Error interno")})),
+        @RouterOperation(path = TeamHandler.TASKS, method = RequestMethod.POST, beanClass = TeamHandler.class, beanMethod = "linkTask",            operation = @Operation(operationId = "linkTaskTeam", summary = "Vincular tarea existente sin equipo (Administrador o Coordinador del equipo)", security = @SecurityRequirement(name = "bearerAuth"),
                 parameters = @Parameter(name = "teamId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "string", format = "uuid")),
                 requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = TeamHandler.LinkTaskRequest.class))),
                 responses = {@ApiResponse(responseCode = "204", description = "Vinculación guardada"),
@@ -97,6 +104,7 @@ public class NotificationRouterRest {
     public RouterFunction<ServerResponse> notificationRoutes(NotificationHandler notifications, OrganizationSettingsHandler settings, TeamHandler teams) {
         return RouterFunctions.route().GET(TeamHandler.BASE, teams::list).POST(TeamHandler.BASE, teams::create)
                 .PUT(TeamHandler.COORDINATOR, teams::changeCoordinator).POST(TeamHandler.MEMBERS, teams::addMember)
+                .POST(TeamHandler.REASSIGN_MEMBERS, teams::reassignMember)
                 .POST(TeamHandler.TASKS, teams::linkTask).GET(NotificationHandler.STREAM, notifications::stream)
                 .GET(NotificationHandler.BASE, notifications::list)
                 .GET(OrganizationSettingsHandler.BASE, settings::get)

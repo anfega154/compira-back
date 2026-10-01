@@ -175,4 +175,39 @@ class TeamsUseCaseTest {
                 .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.CONFLICT).verify();
         verify(teams, never()).linkTask(any(), any());
     }
+
+    @Test
+    void administratorReassignsCollaboratorToAnotherTeam() {
+        when(users.findByEmail("admin@compira.co")).thenReturn(Mono.just(TaskTestData.administrator()));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        when(users.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
+        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.otherTeam()));
+        when(teams.reassignMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.empty());
+
+        StepVerifier.create(useCase.reassignMember("admin@compira.co", TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL))
+                .verifyComplete();
+        verify(teams).reassignMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID);
+    }
+
+    @Test
+    void rejectsReassignmentToSameTeam() {
+        when(users.findByEmail("admin@compira.co")).thenReturn(Mono.just(TaskTestData.administrator()));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        when(users.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
+        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.team()));
+
+        StepVerifier.create(useCase.reassignMember("admin@compira.co", TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL))
+                .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.CONFLICT).verify();
+        verify(teams, never()).reassignMember(any(), any());
+    }
+
+    @Test
+    void forbidsNonAdministratorFromReassigningCollaborator() {
+        when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+
+        StepVerifier.create(useCase.reassignMember(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL))
+                .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.FORBIDDEN).verify();
+        verify(teams, never()).reassignMember(any(), any());
+    }
 }

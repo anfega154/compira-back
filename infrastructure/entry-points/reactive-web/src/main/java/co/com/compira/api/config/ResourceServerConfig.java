@@ -6,6 +6,7 @@ import co.com.compira.api.task.TaskRoute;
 import co.com.compira.api.team.TeamHandler;
 import co.com.compira.api.notification.NotificationHandler;
 import co.com.compira.api.organization.OrganizationSettingsHandler;
+import co.com.compira.api.user.UserAdminHandler;
 import co.com.compira.model.auth.gateways.ApplicationUserRepositoryGateway;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -73,6 +74,7 @@ public class ResourceServerConfig {
                         .pathMatchers(TeamHandler.BASE, TeamHandler.BASE + DESCENDANTS).hasAuthority(ADMINISTRATOR)
                         .pathMatchers(AUTH + AuthenticationRoute.REGISTER, AUTH + AuthenticationRoute.USERS, OrganizationSettingsHandler.BASE)
                         .hasAuthority(ADMINISTRATOR)
+                        .pathMatchers(UserAdminHandler.BASE, UserAdminHandler.BASE + DESCENDANTS).hasAuthority(ADMINISTRATOR)
                         .pathMatchers(AUTH + AuthenticationRoute.LOGIN, AUTH + AuthenticationRoute.LOGIN + DESCENDANTS, AUTH + AuthenticationRoute.PASSWORD_RECOVERY,
                                 AUTH + AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, AUTH + AuthenticationRoute.LOGOUT,
                                 HEALTH, OPEN_API, WEBJARS).permitAll()
