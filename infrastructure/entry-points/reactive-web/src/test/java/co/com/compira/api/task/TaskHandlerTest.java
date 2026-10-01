@@ -252,4 +252,39 @@ class TaskHandlerTest {
                 .exchange()
                 .expectStatus().isOk();
     }
+
+    @Test
+    void shouldGetIndicators() {
+        when(getTaskIndicatorsUseCase.execute(TaskApiTestData.ACTOR_EMAIL))
+                .thenReturn(Mono.just(new co.com.compira.model.task.TaskIndicators(
+                        5, 2, 1, 2, 1, 50,
+                        java.util.List.of(new co.com.compira.model.task.TaskIndicators.AssigneeWorkload(
+                                TaskApiTestData.TASK_ID, "Ana", "ana@compira.co", 3)),
+                        java.util.List.of(new co.com.compira.model.task.TaskIndicators.Assignee(
+                                TaskApiTestData.TASK_ID, "Ana", "ana@compira.co")))));
+
+        webTestClient.get()
+                .uri(BASE + "/indicators")
+                .header(TaskRoute.ACTOR_EMAIL_HEADER, TaskApiTestData.ACTOR_EMAIL)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody().jsonPath("$.compliancePercentage").isEqualTo(50)
+                .jsonPath("$.workloadByAssignee[0].assigneeName").isEqualTo("Ana");
+    }
+
+    @Test
+    void shouldGetReports() {
+        when(getTaskReportsUseCase.execute(TaskApiTestData.ACTOR_EMAIL))
+                .thenReturn(Mono.just(new co.com.compira.model.task.TaskReport(
+                        java.util.List.of(new co.com.compira.model.task.TaskReport.AssigneeReportRow(
+                                TaskApiTestData.TASK_ID, "Ana", "ana@compira.co", 4, 2, 1, 1, 1, 100, 12.5)))));
+
+        webTestClient.get()
+                .uri(BASE + "/reports")
+                .header(TaskRoute.ACTOR_EMAIL_HEADER, TaskApiTestData.ACTOR_EMAIL)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody().jsonPath("$.rows[0].assigneeName").isEqualTo("Ana")
+                .jsonPath("$.rows[0].averageClosureHours").isEqualTo(12.5);
+    }
 }
