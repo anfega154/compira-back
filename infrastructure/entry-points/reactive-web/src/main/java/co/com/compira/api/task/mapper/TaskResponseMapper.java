@@ -10,10 +10,17 @@ import co.com.compira.model.task.TaskHistoryEntry;
 import co.com.compira.model.task.TaskIndicators;
 import co.com.compira.model.task.TaskObservation;
 import co.com.compira.model.task.TaskReport;
+import co.com.compira.model.task.gateways.TaskClockGateway;
 import org.springframework.stereotype.Component;
 
 @Component
 public class TaskResponseMapper {
+    private final TaskClockGateway taskClockGateway;
+
+    public TaskResponseMapper(TaskClockGateway taskClockGateway) {
+        this.taskClockGateway = taskClockGateway;
+    }
+
     public TaskResponse toResponse(Task task) {
         return new TaskResponse(
                 task.id(),
@@ -21,6 +28,7 @@ public class TaskResponseMapper {
                 task.description(),
                 task.dueDate(),
                 task.status().name(),
+                task.isOverdue(taskClockGateway.now()),
                 task.responsibleUserId(),
                 task.createdByUserId(),
                 task.createdAt(),

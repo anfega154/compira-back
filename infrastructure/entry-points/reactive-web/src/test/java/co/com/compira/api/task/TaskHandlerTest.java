@@ -72,7 +72,7 @@ class TaskHandlerTest {
                 getTaskUseCase,
                 new TaskRequestValidator(Validation.buildDefaultValidatorFactory().getValidator()),
                 new TaskRequestMapper(),
-                new TaskResponseMapper(),
+                new TaskResponseMapper(() -> java.time.OffsetDateTime.parse("2026-09-24T10:00:00Z")),
                 new TaskErrorHandler(), transactions);
 
         webTestClient = WebTestClient.bindToRouterFunction(new TaskRouterRest().taskRouterFunction(taskHandler, teams, new TaskErrorHandler()))
