@@ -41,4 +41,22 @@ public class TaskNotificationsUseCase {
                 .flatMapMany(user -> settings.get().flatMapMany(configuration -> configuration.notificationsEnabled()
                         ? notifications.findByRecipient(user.id(), beforeId, PAGE_SIZE) : Flux.empty()));
     }
+
+    public Mono<Void> markRead(String email, long notificationId) {
+        return requireRecipient(email)
+                .flatMap(user -> notifications.markAsRead(user.id(), notificationId))
+                .then();
+    }
+
+    public Mono<Void> markAllRead(String email) {
+        return requireRecipient(email)
+                .flatMap(user -> notifications.markAllAsRead(user.id()))
+                .then();
+    }
+
+    private Mono<co.com.compira.model.task.TaskUser> requireRecipient(String email) {
+        return authorization.requireActor(email)
+                .filter(user -> user.hasRole(RoleCode.COLLABORATOR.name()) || user.hasRole(RoleCode.COORDINATOR.name()))
+                .switchIfEmpty(Mono.error(new CompiraException(FORBIDDEN_CODE, FORBIDDEN, ErrorCategory.FORBIDDEN)));
+    }
 }

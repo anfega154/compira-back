@@ -11,5 +11,7 @@ import java.util.UUID;
 public interface NotificationRepositoryGateway {
     Mono<Void> save(Task task, UUID recipientId, NotificationType type, String eventKey, boolean deliverable);
     Flux<TaskNotification> findByRecipient(UUID recipientId, long beforeId, int limit);
+    Mono<Long> markAsRead(UUID recipientId, long notificationId);
+    Mono<Long> markAllAsRead(UUID recipientId);
     Flux<Task> lockAlertCandidates(OffsetDateTime now, OffsetDateTime upcoming, int limit);
 }

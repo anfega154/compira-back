@@ -83,6 +83,19 @@ public class NotificationRouterRest {
                 responses = {@ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = NotificationResponse.class)))),
                     @ApiResponse(responseCode = "400", description = "Cursor inválido"), @ApiResponse(responseCode = "401", description = "Token inválido o vencido"),
                     @ApiResponse(responseCode = "403", description = "Rol no autorizado"), @ApiResponse(responseCode = "500", description = "Error interno")})),
+        @RouterOperation(path = NotificationHandler.READ, method = RequestMethod.POST, beanClass = NotificationHandler.class, beanMethod = "markRead",
+            operation = @Operation(operationId = "markNotificationRead", summary = "Marcar un aviso propio como leído",
+                security = @SecurityRequirement(name = "bearerAuth"),
+                parameters = @Parameter(name = "notificationId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "integer", format = "int64", minimum = "1")),
+                responses = {@ApiResponse(responseCode = "204", description = "Aviso marcado como leído (idempotente)"),
+                    @ApiResponse(responseCode = "400", description = "Identificador inválido"), @ApiResponse(responseCode = "401", description = "Token inválido o vencido"),
+                    @ApiResponse(responseCode = "403", description = "Rol no autorizado"), @ApiResponse(responseCode = "500", description = "Error interno")})),
+        @RouterOperation(path = NotificationHandler.READ_ALL, method = RequestMethod.POST, beanClass = NotificationHandler.class, beanMethod = "markAllRead",
+            operation = @Operation(operationId = "markAllNotificationsRead", summary = "Marcar todos los avisos propios como leídos",
+                security = @SecurityRequirement(name = "bearerAuth"),
+                responses = {@ApiResponse(responseCode = "204", description = "Avisos marcados como leídos (idempotente)"),
+                    @ApiResponse(responseCode = "401", description = "Token inválido o vencido"),
+                    @ApiResponse(responseCode = "403", description = "Rol no autorizado"), @ApiResponse(responseCode = "500", description = "Error interno")})),
         @RouterOperation(path = NotificationHandler.STREAM, method = RequestMethod.GET, beanClass = NotificationHandler.class, beanMethod = "stream",
             operation = @Operation(operationId = "streamNotifications", summary = "SSE autenticado de los últimos 50 avisos propios",
                 description = "Evento notifications: arreglo JSON. Reconectar con Bearer válido; cierre al vencer el token. Sin entrega mientras el interruptor esté apagado.",
@@ -107,6 +120,8 @@ public class NotificationRouterRest {
                 .POST(TeamHandler.REASSIGN_MEMBERS, teams::reassignMember)
                 .POST(TeamHandler.TASKS, teams::linkTask).GET(NotificationHandler.STREAM, notifications::stream)
                 .GET(NotificationHandler.BASE, notifications::list)
+                .POST(NotificationHandler.READ, notifications::markRead)
+                .POST(NotificationHandler.READ_ALL, notifications::markAllRead)
                 .GET(OrganizationSettingsHandler.BASE, settings::get)
                 .PUT(OrganizationSettingsHandler.BASE, settings::save).build();
     }

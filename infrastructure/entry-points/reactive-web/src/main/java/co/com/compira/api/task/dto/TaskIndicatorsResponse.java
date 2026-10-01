@@ -10,12 +10,19 @@ public record TaskIndicatorsResponse(
         long closedCount,
         long closedOnTimeCount,
         Integer compliancePercentage,
-        List<AssigneeWorkloadResponse> workloadByAssignee) {
+        List<AssigneeWorkloadResponse> workloadByAssignee,
+        List<AssigneeResponse> assignees) {
 
     public record AssigneeWorkloadResponse(
             UUID assigneeId,
             String assigneeName,
             String assigneeEmail,
             long taskCount) {
+    }
+
+    public record AssigneeResponse(
+            UUID id,
+            String name,
+            String email) {
     }
 }

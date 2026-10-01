@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -82,24 +83,55 @@ public class GetTaskIndicatorsUseCase {
         Map<UUID, Long> workloadByAssignee = tasks.stream()
                 .filter(task -> task.status().isActive() && task.responsibleUserId() != null)
                 .collect(Collectors.groupingBy(Task::responsibleUserId, Collectors.counting()));
-        return resolveWorkload(workloadByAssignee)
-                .map(workload -> new TaskIndicators(tasks.size(), overdueCount, dueSoonCount,
-                        closedCount, closedOnTimeCount, compliancePercentage, workload));
+        Set<UUID> allResponsibleIds = tasks.stream()
+                .map(Task::responsibleUserId)
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+        return taskUserDirectoryGateway.findByIds(allResponsibleIds)
+                .collectMap(TaskUser::id, assignee -> assignee)
+                .map(directory -> new TaskIndicators(
+                        tasks.size(), overdueCount, dueSoonCount, closedCount, closedOnTimeCount, compliancePercentage,
+                        buildWorkload(workloadByAssignee, directory),
+                        buildAssignees(allResponsibleIds, directory)));
     }
 
-    private Mono<List<TaskIndicators.AssigneeWorkload>> resolveWorkload(Map<UUID, Long> workloadByAssignee) {
-        return taskUserDirectoryGateway.findByIds(workloadByAssignee.keySet())
-                .collectMap(TaskUser::id, assignee -> assignee)
-                .map(assignees -> workloadByAssignee.entrySet().stream()
-                        .map(entry -> toWorkload(entry.getKey(), entry.getValue(), assignees.get(entry.getKey())))
-                        .sorted((left, right) -> Long.compare(right.taskCount(), left.taskCount()))
-                        .toList());
+    private List<TaskIndicators.AssigneeWorkload> buildWorkload(Map<UUID, Long> workloadByAssignee, Map<UUID, TaskUser> directory) {
+        return workloadByAssignee.entrySet().stream()
+                .map(entry -> toWorkload(entry.getKey(), entry.getValue(), directory.get(entry.getKey())))
+                .sorted((left, right) -> Long.compare(right.taskCount(), left.taskCount()))
+                .toList();
+    }
+
+    private List<TaskIndicators.Assignee> buildAssignees(Set<UUID> ids, Map<UUID, TaskUser> directory) {
+        return ids.stream()
+                .map(id -> toAssignee(id, directory.get(id)))
+                .sorted((left, right) -> labelOf(left).compareToIgnoreCase(labelOf(right)))
+                .toList();
+    }
+
+    private TaskIndicators.Assignee toAssignee(UUID id, TaskUser assignee) {
+        String name = displayName(assignee);
+        return new TaskIndicators.Assignee(id, name, assignee == null ? null : assignee.email());
+    }
+
+    private String labelOf(TaskIndicators.Assignee assignee) {
+        if (assignee.name() != null) {
+            return assignee.name();
+        }
+        return assignee.email() != null ? assignee.email() : assignee.id().toString();
     }
 
     private TaskIndicators.AssigneeWorkload toWorkload(UUID assigneeId, long taskCount, TaskUser assignee) {
-        String name = assignee == null ? null : (safe(assignee.firstName()) + " " + safe(assignee.lastName())).trim();
-        String email = assignee == null ? null : assignee.email();
-        return new TaskIndicators.AssigneeWorkload(assigneeId, name == null || name.isBlank() ? null : name, email, taskCount);
+        return new TaskIndicators.AssigneeWorkload(assigneeId, displayName(assignee),
+                assignee == null ? null : assignee.email(), taskCount);
+    }
+
+    private String displayName(TaskUser assignee) {
+        if (assignee == null) {
+            return null;
+        }
+        String name = (safe(assignee.firstName()) + " " + safe(assignee.lastName())).trim();
+        return name.isBlank() ? null : name;
     }
 
     private String safe(String value) {

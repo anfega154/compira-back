@@ -21,9 +21,17 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryGate
             ON CONFLICT (event_key, recipient_id) DO NOTHING
             """;
     private static final String SELECT = """
-            SELECT id, task_id, task_title, type, created_at FROM task_notifications
+            SELECT id, task_id, task_title, type, created_at, read_at FROM task_notifications
             WHERE recipient_id = :recipientId AND deliverable AND id < :beforeId
             ORDER BY id DESC LIMIT :limit
+            """;
+    private static final String MARK_READ = """
+            UPDATE task_notifications SET read_at = CURRENT_TIMESTAMP
+            WHERE id = :notificationId AND recipient_id = :recipientId AND read_at IS NULL
+            """;
+    private static final String MARK_ALL_READ = """
+            UPDATE task_notifications SET read_at = CURRENT_TIMESTAMP
+            WHERE recipient_id = :recipientId AND deliverable AND read_at IS NULL
             """;
     private static final String CANDIDATES = """
             SELECT t.* FROM tasks t JOIN task_teams tt ON tt.task_id = t.id JOIN teams tm ON tm.id = tt.team_id
@@ -60,6 +68,17 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryGate
     public Flux<TaskNotification> findByRecipient(UUID recipientId, long beforeId, int limit) {
         return database.sql(SELECT).bind("recipientId", recipientId).bind("beforeId", beforeId)
                 .bind("limit", limit).fetch().all().map(notifications::toNotification);
+    }
+
+    @Override
+    public Mono<Long> markAsRead(UUID recipientId, long notificationId) {
+        return database.sql(MARK_READ).bind("recipientId", recipientId).bind("notificationId", notificationId)
+                .fetch().rowsUpdated();
+    }
+
+    @Override
+    public Mono<Long> markAllAsRead(UUID recipientId) {
+        return database.sql(MARK_ALL_READ).bind("recipientId", recipientId).fetch().rowsUpdated();
     }
 
     @Override

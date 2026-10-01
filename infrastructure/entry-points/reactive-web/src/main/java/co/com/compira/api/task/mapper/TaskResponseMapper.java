@@ -59,6 +59,10 @@ public class TaskResponseMapper {
                 indicators.workloadByAssignee().stream()
                         .map(workload -> new TaskIndicatorsResponse.AssigneeWorkloadResponse(
                                 workload.assigneeId(), workload.assigneeName(), workload.assigneeEmail(), workload.taskCount()))
+                        .toList(),
+                indicators.assignees().stream()
+                        .map(assignee -> new TaskIndicatorsResponse.AssigneeResponse(
+                                assignee.id(), assignee.name(), assignee.email()))
                         .toList());
     }
 

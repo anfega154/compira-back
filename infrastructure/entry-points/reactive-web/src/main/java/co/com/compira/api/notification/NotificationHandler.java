@@ -19,12 +19,16 @@ import java.util.List;
 public class NotificationHandler {
     private static final String BEFORE = "before";
     private static final String INVALID_CURSOR = "Cursor inválido";
+    private static final String INVALID_NOTIFICATION = "Identificador de aviso inválido";
+    private static final String NOTIFICATION_ID = "notificationId";
     private static final String NO_STORE = "no-store";
     private static final String EVENT_NAME = "notifications";
     private static final String BUFFERING_HEADER = "X-Accel-Buffering";
     private static final String BUFFERING_DISABLED = "no";
     public static final String BASE = "/api/v1/notifications";
     public static final String STREAM = BASE + "/stream";
+    public static final String READ = BASE + "/{notificationId}/read";
+    public static final String READ_ALL = BASE + "/read-all";
     private final TaskNotificationsUseCase notifications;
     private final NotificationResponseMapper mapper;
     private final TaskErrorHandler errors;
@@ -45,8 +49,23 @@ public class NotificationHandler {
                 .onErrorResume(errors::handle);
     }
 
-    public Mono<ServerResponse> stream(ServerRequest request) {
-        return request.principal().cast(JwtAuthenticationToken.class).flatMap(authentication -> {
+    public Mono<ServerResponse> markRead(ServerRequest request) {
+        return request.principal().flatMap(principal -> Mono.fromCallable(() ->
+                        Long.parseLong(request.pathVariable(NOTIFICATION_ID)))
+                .onErrorMap(NumberFormatException.class, error -> new IllegalArgumentException(INVALID_NOTIFICATION))
+                .flatMap(notificationId -> notifications.markRead(principal.getName(), notificationId))
+                .then(ServerResponse.noContent().header(HttpHeaders.CACHE_CONTROL, NO_STORE).build()))
+                .onErrorResume(errors::handle);
+    }
+
+    public Mono<ServerResponse> markAllRead(ServerRequest request) {
+        return request.principal()
+                .flatMap(principal -> notifications.markAllRead(principal.getName()))
+                .then(ServerResponse.noContent().header(HttpHeaders.CACHE_CONTROL, NO_STORE).build())
+                .onErrorResume(errors::handle);
+    }
+
+    public Mono<ServerResponse> stream(ServerRequest request) {        return request.principal().cast(JwtAuthenticationToken.class).flatMap(authentication -> {
             Duration remaining = Duration.between(Instant.now(), authentication.getToken().getExpiresAt());
             if (remaining.isNegative() || remaining.isZero()) {
                 return ServerResponse.status(401).build();
