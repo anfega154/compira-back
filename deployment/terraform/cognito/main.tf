@@ -69,10 +69,16 @@ resource "aws_cognito_user_pool" "this" {
     require_numbers                  = true
     require_symbols                  = true
     require_uppercase                = true
-    temporary_password_validity_days = 7
+    temporary_password_validity_days = var.temporary_password_validity_days
   }
 
   account_recovery_setting {
+    # La MFA de inicio de sesión es por correo electrónico (EmailMfaConfiguration).
+    # Por diseño de Cognito, cuando la MFA es por email, el correo queda
+    # DESCALIFICADO como canal de recuperación de contraseña. Por eso la
+    # recuperación (ForgotPassword) se realiza por SMS al teléfono verificado,
+    # que debe ser el mecanismo de MAYOR prioridad. El teléfono SOLO se usa para
+    # recuperar la contraseña; los códigos de inicio de sesión siempre van por email.
     recovery_mechanism {
       name     = "verified_phone_number"
       priority = 1
@@ -86,12 +92,18 @@ resource "aws_cognito_user_pool" "this" {
 
   admin_create_user_config {
     allow_admin_create_user_only = false
+
+    invite_message_template {
+      email_subject = var.invite_email_subject
+      email_message = file("${path.module}/templates/invite_email.txt")
+      sms_message   = var.invite_sms_message
+    }
   }
 
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
     email_subject        = var.verification_email_subject
-    email_message        = var.verification_email_message
+    email_message        = file("${path.module}/templates/verification_email.html")
     sms_message          = var.verification_sms_message
   }
 
@@ -103,12 +115,14 @@ resource "aws_cognito_user_pool" "this" {
   }
 
   email_mfa_configuration {
-    message = var.email_mfa_message
+    message = file("${path.module}/templates/email_mfa.html")
     subject = var.email_mfa_subject
   }
 
-  sms_authentication_message = var.sms_mfa_message
-
+  # El SMS solo se utiliza para la recuperación de contraseña (ForgotPassword).
+  # La MFA de inicio de sesión es por email, por lo que NO se configura
+  # sms_authentication_message. Se conserva sms_configuration porque Cognito
+  # necesita el rol de publicación SNS para enviar el SMS de recuperación.
   sms_configuration {
     external_id    = var.sms_external_id
     sns_caller_arn = aws_iam_role.cognito_sms.arn

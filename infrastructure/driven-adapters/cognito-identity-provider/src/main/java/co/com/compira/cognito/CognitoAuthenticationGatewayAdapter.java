@@ -246,7 +246,13 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 AttributeType.builder().name(CognitoAuthenticationConstants.EMAIL_VERIFIED_ATTRIBUTE).value("true").build(),
                 AttributeType.builder().name(CognitoAuthenticationConstants.GIVEN_NAME_ATTRIBUTE).value(command.firstName()).build(),
                 AttributeType.builder().name(CognitoAuthenticationConstants.FAMILY_NAME_ATTRIBUTE).value(command.lastName()).build(),
-                AttributeType.builder().name(CognitoAuthenticationConstants.PHONE_NUMBER_ATTRIBUTE).value(command.phoneNumber()).build());
+                AttributeType.builder().name(CognitoAuthenticationConstants.PHONE_NUMBER_ATTRIBUTE).value(command.phoneNumber()).build(),
+                // El teléfono se marca como verificado para habilitarlo como canal de
+                // recuperación de contraseña (ForgotPassword por SMS). La MFA de inicio de
+                // sesión se mantiene por email; con MFA por email, Cognito descalifica el
+                // correo como canal de recuperación, por lo que el teléfono verificado es el
+                // único mecanismo válido de recuperación.
+                AttributeType.builder().name(CognitoAuthenticationConstants.PHONE_NUMBER_VERIFIED_ATTRIBUTE).value("true").build());
     }
 
     private String extractSubFromAttributes(List<AttributeType> attributes) {
