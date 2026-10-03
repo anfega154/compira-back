@@ -21,6 +21,8 @@ public class UpdateUserUseCase {
     private static final String INVALID_ROLE_MESSAGE = "Rol inválido";
     private static final String USER_NOT_FOUND_CODE = "USER_ADMIN_404";
     private static final String USER_NOT_FOUND_MESSAGE = "Usuario no encontrado";
+    private static final String SELF_INACTIVATE_CODE = "USER_ADMIN_403_SELF";
+    private static final String SELF_INACTIVATE_MESSAGE = "No puedes inactivar tu propia cuenta";
 
     private final UserDirectoryGateway userDirectoryGateway;
     private final AuthenticationGateway authenticationGateway;
@@ -45,6 +47,26 @@ public class UpdateUserUseCase {
         return requireAdministrator(actorEmail)
                 .then(Mono.defer(() -> requireExistingUser(targetEmail)))
                 .flatMap(existing -> authenticationGateway.resetUserPassword(existing.email(), temporaryPassword));
+    }
+
+    public Mono<OrganizationUser> setActive(String actorEmail, String targetEmail, boolean active) {
+        return requireAdministrator(actorEmail)
+                .then(Mono.defer(() -> validateNotSelfInactivation(actorEmail, targetEmail, active)))
+                .then(Mono.defer(() -> requireExistingUser(targetEmail)))
+                .flatMap(existing -> applyIdentityState(existing.email(), active)
+                        .then(userDirectoryGateway.setStatus(existing.email(), active)));
+    }
+
+    private Mono<Void> validateNotSelfInactivation(String actorEmail, String targetEmail, boolean active) {
+        if (!active && targetEmail != null && targetEmail.equalsIgnoreCase(actorEmail)) {
+            return Mono.error(new CompiraException(
+                    SELF_INACTIVATE_CODE, SELF_INACTIVATE_MESSAGE, ErrorCategory.FORBIDDEN));
+        }
+        return Mono.empty();
+    }
+
+    private Mono<Void> applyIdentityState(String email, boolean active) {
+        return active ? authenticationGateway.enableUser(email) : authenticationGateway.disableUser(email);
     }
 
     private Mono<Void> validateRoles(List<String> roleCodes) {

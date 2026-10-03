@@ -13,6 +13,8 @@ public interface ApplicationUserRepositoryGateway {
 
     Mono<ApplicationUser> activateUser(String email);
 
+    Mono<ApplicationUser> disableUser(String email);
+
     Mono<ApplicationUser> completeLogin(String email);
 
     Mono<Void> deleteByEmail(String email);

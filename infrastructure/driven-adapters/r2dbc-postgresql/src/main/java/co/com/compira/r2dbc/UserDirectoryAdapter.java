@@ -2,6 +2,7 @@ package co.com.compira.r2dbc;
 
 import co.com.compira.model.common.error.CompiraException;
 import co.com.compira.model.common.error.ErrorCategory;
+import co.com.compira.model.auth.UserStatus;
 import co.com.compira.model.user.OrganizationUser;
 import co.com.compira.model.user.gateways.UserDirectoryGateway;
 import co.com.compira.r2dbc.mapper.OrganizationUserDataMapper;
@@ -19,6 +20,8 @@ import java.util.UUID;
 public class UserDirectoryAdapter implements UserDirectoryGateway {
     private static final String INVALID_ROLE_CODE = "USER_ADMIN_400";
     private static final String INVALID_ROLE_MESSAGE = "Rol inválido";
+    private static final String USER_NOT_FOUND_CODE = "USER_ADMIN_404";
+    private static final String USER_NOT_FOUND_MESSAGE = "Usuario no encontrado";
     private static final String EMAIL = "email";
     private static final String USER_ID = "userId";
     private static final String ROLE_CODE = "roleCode";
@@ -42,6 +45,14 @@ public class UserDirectoryAdapter implements UserDirectoryGateway {
     private static final String INSERT_ROLE = """
             INSERT INTO user_roles (user_id, role_id)
             SELECT :userId, id FROM roles WHERE code = :roleCode
+            """;
+    private static final String STATUS = "status";
+    private static final String UPDATE_STATUS = """
+            UPDATE users
+            SET status = :status,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE email = :email
+            RETURNING id
             """;
 
     private final DatabaseClient database;
@@ -73,6 +84,16 @@ public class UserDirectoryAdapter implements UserDirectoryGateway {
                 .flatMap(userId -> database.sql(DELETE_ROLES).bind(USER_ID, userId).fetch().rowsUpdated()
                         .thenMany(Flux.fromIterable(roleCodes).concatMap(code -> insertRole(userId, code)))
                         .then(findByEmail(email)))
+                .as(transactionalOperator::transactional);
+    }
+
+    @Override
+    public Mono<OrganizationUser> setStatus(String email, boolean active) {
+        String status = active ? UserStatus.ACTIVE.name() : UserStatus.DISABLED.name();
+        return database.sql(UPDATE_STATUS).bind(STATUS, status).bind(EMAIL, email).fetch().one()
+                .switchIfEmpty(Mono.error(new CompiraException(
+                        USER_NOT_FOUND_CODE, USER_NOT_FOUND_MESSAGE, ErrorCategory.NOT_FOUND)))
+                .then(findByEmail(email))
                 .as(transactionalOperator::transactional);
     }
 

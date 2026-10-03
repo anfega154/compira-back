@@ -60,6 +60,20 @@ public class UserRouterRest {
                                     @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
                                     @ApiResponse(responseCode = "403", description = "Requiere rol Administrador"),
                                     @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
+                                    @ApiResponse(responseCode = "500", description = "Error interno")})),
+            @RouterOperation(path = UserAdminHandler.STATUS, method = RequestMethod.POST,
+                    beanClass = UserAdminHandler.class, beanMethod = "setStatus",
+                    operation = @Operation(operationId = "setUserStatus",
+                            summary = "Activar o inactivar un usuario (Administrador)",
+                            description = "DEC-019. Inactivación lógica reversible; reemplaza la eliminación física (HU-09 descartada).",
+                            security = @SecurityRequirement(name = "bearerAuth"),
+                            requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = UserAdminHandler.SetUserStatusRequest.class))),
+                            responses = {
+                                    @ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = UserResponse.class))),
+                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+                                    @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+                                    @ApiResponse(responseCode = "403", description = "Requiere rol Administrador o intento de autoinactivación"),
+                                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado"),
                                     @ApiResponse(responseCode = "500", description = "Error interno")}))
     })
     public RouterFunction<ServerResponse> userRouterFunction(UserAdminHandler handler) {
@@ -67,6 +81,7 @@ public class UserRouterRest {
                 .GET(UserAdminHandler.BASE, handler::list)
                 .PUT(UserAdminHandler.ROLES, handler::updateRoles)
                 .POST(UserAdminHandler.PASSWORD_RESET, handler::resetPassword)
+                .POST(UserAdminHandler.STATUS, handler::setStatus)
                 .build();
     }
 }

@@ -48,12 +48,6 @@ variable "verification_email_subject" {
   default     = "Confirm your Compira account"
 }
 
-variable "verification_email_message" {
-  type        = string
-  description = "Email message used for sign-up confirmation."
-  default     = "Your Compira verification code is {####}"
-}
-
 variable "verification_sms_message" {
   type        = string
   description = "SMS message used for sign-up confirmation."
@@ -66,22 +60,28 @@ variable "email_mfa_subject" {
   default     = "Your Compira sign-in code"
 }
 
-variable "email_mfa_message" {
+variable "invite_email_subject" {
   type        = string
-  description = "Email message used for EMAIL_OTP MFA."
-  default     = "Your Compira sign-in code is {####}"
+  description = "Email subject for the admin-create-user invitation (temporary password)."
+  default     = "Your temporary password"
 }
 
-variable "sms_mfa_message" {
+variable "invite_sms_message" {
   type        = string
-  description = "SMS message used for SMS MFA."
-  default     = "Your Compira sign-in code is {####}"
+  description = "SMS message for the admin-create-user invitation (temporary password)."
+  default     = "Bienvenido. Usuario: {username}. Contraseña temporal: {####}. Inicia sesión y cambia tu contraseña en el primer acceso."
 }
 
 variable "password_minimum_length" {
   type        = number
   description = "Minimum password length for Cognito users."
-  default     = 12
+  default     = 10
+}
+
+variable "temporary_password_validity_days" {
+  type        = number
+  description = "Validity in days of admin-generated temporary passwords."
+  default     = 2
 }
 
 variable "access_token_validity_minutes" {
