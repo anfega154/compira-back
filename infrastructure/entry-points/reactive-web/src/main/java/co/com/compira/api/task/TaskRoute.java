@@ -6,6 +6,8 @@ public final class TaskRoute {
     public static final String CREATE = "";
     public static final String MANAGED = "";
     public static final String ASSIGNED = "/assigned";
+    public static final String INDICATORS = "/indicators";
+    public static final String REPORTS = "/reports";
     public static final String BY_ID = "/{taskId}";
     public static final String ASSIGN = "/{taskId}/assign";
     public static final String REASSIGN = "/{taskId}/reassign";

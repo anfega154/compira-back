@@ -15,6 +15,7 @@ import java.util.UUID;
 public class TaskUserDirectoryAdapter implements TaskUserDirectoryGateway {
     private static final String SELECT_USER_BY_EMAIL_QUERY = "SELECT * FROM users WHERE email = :email AND status = 'ACTIVE'";
     private static final String SELECT_USER_BY_ID_QUERY = "SELECT * FROM users WHERE id = :id AND status = 'ACTIVE'";
+    private static final String SELECT_USERS_BY_IDS_QUERY = "SELECT * FROM users WHERE id IN (:ids)";
     private static final String SELECT_ROLES_BY_USER_ID_QUERY = """
             SELECT r.code
             FROM roles r
@@ -46,6 +47,18 @@ public class TaskUserDirectoryAdapter implements TaskUserDirectoryGateway {
                 .bind("id", id)
                 .fetch()
                 .one()
+                .flatMap(this::buildTaskUser);
+    }
+
+    @Override
+    public reactor.core.publisher.Flux<TaskUser> findByIds(java.util.Collection<UUID> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return reactor.core.publisher.Flux.empty();
+        }
+        return databaseClient.sql(SELECT_USERS_BY_IDS_QUERY)
+                .bind("ids", java.util.List.copyOf(ids))
+                .fetch()
+                .all()
                 .flatMap(this::buildTaskUser);
     }
 

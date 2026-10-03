@@ -21,6 +21,7 @@ public class TeamHandler {
     public static final String BASE = "/api/v1/teams";
     public static final String COORDINATOR = BASE + "/{teamId}/coordinator";
     public static final String MEMBERS = BASE + "/{teamId}/members";
+    public static final String REASSIGN_MEMBERS = BASE + "/{teamId}/members/reassign";
     public static final String TASKS = BASE + "/{teamId}/tasks";
     private static final String TEAM_ID = "teamId";
     private final TeamsUseCase teams;
@@ -63,6 +64,12 @@ public class TeamHandler {
     public Mono<ServerResponse> addMember(ServerRequest request) {
         return request.principal().flatMap(principal -> body(request, UserEmailRequest.class)
                         .flatMap(input -> teams.addMember(principal.getName(), UUID.fromString(request.pathVariable(TEAM_ID)), input.email())))
+                .then(ServerResponse.noContent().build()).as(transactions::transactional).onErrorResume(errors::handle);
+    }
+
+    public Mono<ServerResponse> reassignMember(ServerRequest request) {
+        return request.principal().flatMap(principal -> body(request, UserEmailRequest.class)
+                        .flatMap(input -> teams.reassignMember(principal.getName(), UUID.fromString(request.pathVariable(TEAM_ID)), input.email())))
                 .then(ServerResponse.noContent().build()).as(transactions::transactional).onErrorResume(errors::handle);
     }
 

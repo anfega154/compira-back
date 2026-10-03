@@ -16,6 +16,8 @@ import co.com.compira.usecase.createtask.CreateTaskUseCase;
 import co.com.compira.usecase.gettask.GetTaskUseCase;
 import co.com.compira.usecase.gettaskhistory.GetTaskHistoryUseCase;
 import co.com.compira.usecase.gettaskobservations.GetTaskObservationsUseCase;
+import co.com.compira.usecase.gettaskindicators.GetTaskIndicatorsUseCase;
+import co.com.compira.usecase.gettaskreports.GetTaskReportsUseCase;
 import co.com.compira.usecase.listassignedtasks.ListAssignedTasksUseCase;
 import co.com.compira.usecase.listmanagedtasks.ListManagedTasksUseCase;
 import co.com.compira.usecase.reassigntask.ReassignTaskUseCase;
@@ -43,6 +45,8 @@ public class TaskHandler {
     private final ListManagedTasksUseCase listManagedTasksUseCase;
     private final GetTaskHistoryUseCase getTaskHistoryUseCase;
     private final GetTaskObservationsUseCase getTaskObservationsUseCase;
+    private final GetTaskIndicatorsUseCase getTaskIndicatorsUseCase;
+    private final GetTaskReportsUseCase getTaskReportsUseCase;
     private final GetTaskUseCase getTaskUseCase;
     private final TaskRequestValidator taskRequestValidator;
     private final TaskRequestMapper taskRequestMapper;
@@ -60,6 +64,8 @@ public class TaskHandler {
                        ListManagedTasksUseCase listManagedTasksUseCase,
                        GetTaskHistoryUseCase getTaskHistoryUseCase,
                        GetTaskObservationsUseCase getTaskObservationsUseCase,
+                       GetTaskIndicatorsUseCase getTaskIndicatorsUseCase,
+                       GetTaskReportsUseCase getTaskReportsUseCase,
                        GetTaskUseCase getTaskUseCase,
                        TaskRequestValidator taskRequestValidator,
                        TaskRequestMapper taskRequestMapper,
@@ -77,6 +83,8 @@ public class TaskHandler {
         this.listManagedTasksUseCase = listManagedTasksUseCase;
         this.getTaskHistoryUseCase = getTaskHistoryUseCase;
         this.getTaskObservationsUseCase = getTaskObservationsUseCase;
+        this.getTaskIndicatorsUseCase = getTaskIndicatorsUseCase;
+        this.getTaskReportsUseCase = getTaskReportsUseCase;
         this.getTaskUseCase = getTaskUseCase;
         this.taskRequestValidator = taskRequestValidator;
         this.taskRequestMapper = taskRequestMapper;
@@ -104,6 +112,26 @@ public class TaskHandler {
                         .contentType(MediaType.APPLICATION_JSON)
                         .body(listManagedTasksUseCase.execute(actorEmail)
                                 .map(taskResponseMapper::toResponse), Object.class))
+                .onErrorResume(taskErrorHandler::handle);
+    }
+
+    public Mono<ServerResponse> getIndicators(ServerRequest serverRequest) {
+        return actorEmail(serverRequest)
+                .flatMap(getTaskIndicatorsUseCase::execute)
+                .map(taskResponseMapper::toResponse)
+                .flatMap(response -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(response))
+                .onErrorResume(taskErrorHandler::handle);
+    }
+
+    public Mono<ServerResponse> getReports(ServerRequest serverRequest) {
+        return actorEmail(serverRequest)
+                .flatMap(getTaskReportsUseCase::execute)
+                .map(taskResponseMapper::toResponse)
+                .flatMap(response -> ServerResponse.ok()
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(response))
                 .onErrorResume(taskErrorHandler::handle);
     }
 

@@ -28,6 +28,7 @@ import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderAsyncClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminCreateUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminSetUserPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminSetUserMfaPreferenceRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeDeliveryDetailsType;
@@ -64,6 +65,7 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
     private static final String OPERATION_ADMIN_CREATE_USER = "cognito-admin-create-user";
     private static final String OPERATION_SET_MFA_PREFERENCE = "cognito-admin-set-mfa-preference";
     private static final String OPERATION_DELETE_USER = "cognito-admin-delete-user";
+    private static final String OPERATION_RESET_PASSWORD = "cognito-admin-set-user-password";
     private static final String OPERATION_LOGIN = "cognito-initiate-auth";
     private static final String OPERATION_RESPOND_CHALLENGE = "cognito-respond-to-auth-challenge";
     private static final String OPERATION_START_PASSWORD_RECOVERY = "cognito-forgot-password";
@@ -126,6 +128,23 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_DELETE_USER, maskedEmail, properties.userPoolId()))
                 .then()
                 .onErrorMap(error -> mapException(OPERATION_DELETE_USER, maskedEmail, error));
+    }
+
+    @Override
+    public Mono<Void> resetUserPassword(String username, String temporaryPassword) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(username);
+        AdminSetUserPasswordRequest request = AdminSetUserPasswordRequest.builder()
+                .userPoolId(properties.userPoolId())
+                .username(username)
+                .password(temporaryPassword)
+                .permanent(false)
+                .build();
+
+        LOGGER.info(LOG_OPERATION_START, OPERATION_RESET_PASSWORD, maskedEmail, properties.userPoolId());
+        return Mono.fromFuture(cognitoIdentityProviderAsyncClient.adminSetUserPassword(request))
+                .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_RESET_PASSWORD, maskedEmail, properties.userPoolId()))
+                .then()
+                .onErrorMap(error -> mapException(OPERATION_RESET_PASSWORD, maskedEmail, error));
     }
 
     @Override

@@ -61,4 +61,32 @@ class TaskNotificationsUseCaseTest {
         StepVerifier.create(useCase.assignment(TaskTestData.task(TaskStatus.PENDING), TaskTestData.COLLABORATOR_ID,
                 NotificationType.ASSIGNED, NotificationTestData.EVENT_ID)).expectError(IllegalStateException.class).verify();
     }
+
+    @Test
+    void marksSingleNotificationAsReadForRecipient() {
+        when(notifications.markAsRead(TaskTestData.COLLABORATOR_ID, 7L)).thenReturn(Mono.just(1L));
+        StepVerifier.create(useCase.markRead(TaskTestData.COLLABORATOR_EMAIL, 7L)).verifyComplete();
+        verify(notifications).markAsRead(TaskTestData.COLLABORATOR_ID, 7L);
+    }
+
+    @Test
+    void marksAllNotificationsAsReadForRecipient() {
+        when(notifications.markAllAsRead(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(3L));
+        StepVerifier.create(useCase.markAllRead(TaskTestData.COLLABORATOR_EMAIL)).verifyComplete();
+        verify(notifications).markAllAsRead(TaskTestData.COLLABORATOR_ID);
+    }
+
+    @Test
+    void forbidsAdministratorFromMarkingNotificationsAsRead() {
+        var admin = new co.com.compira.model.task.TaskUser(
+                java.util.UUID.fromString("99999999-9999-9999-9999-999999999999"),
+                "admin@compira.co", "Admin", "Only",
+                java.util.List.of(co.com.compira.model.auth.RoleCode.ADMINISTRATOR.name()));
+        when(users.findByEmail("admin@compira.co")).thenReturn(Mono.just(admin));
+        StepVerifier.create(useCase.markAllRead("admin@compira.co"))
+                .expectErrorMatches(error -> error instanceof co.com.compira.model.common.error.CompiraException failure
+                        && failure.getErrorCategory() == co.com.compira.model.common.error.ErrorCategory.FORBIDDEN)
+                .verify();
+        verify(notifications, never()).markAllAsRead(any());
+    }
 }

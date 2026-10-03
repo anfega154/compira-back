@@ -9,6 +9,7 @@ public record TaskResponse(
         String description,
         OffsetDateTime dueDate,
         String status,
+        boolean overdue,
         UUID responsibleUserId,
         UUID createdByUserId,
         OffsetDateTime createdAt,

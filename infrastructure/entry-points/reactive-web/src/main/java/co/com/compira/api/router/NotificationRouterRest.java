@@ -61,8 +61,15 @@ public class NotificationRouterRest {
                     @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
                     @ApiResponse(responseCode = "403", description = "Acceso no permitido"), @ApiResponse(responseCode = "404", description = "Equipo, usuario o tarea no encontrado"),
                     @ApiResponse(responseCode = "409", description = "Vinculación o rol incompatible"), @ApiResponse(responseCode = "500", description = "Error interno")})),
-        @RouterOperation(path = TeamHandler.TASKS, method = RequestMethod.POST, beanClass = TeamHandler.class, beanMethod = "linkTask",
-            operation = @Operation(operationId = "linkTaskTeam", summary = "Vincular tarea existente sin equipo (Administrador o Coordinador del equipo)", security = @SecurityRequirement(name = "bearerAuth"),
+        @RouterOperation(path = TeamHandler.REASSIGN_MEMBERS, method = RequestMethod.POST, beanClass = TeamHandler.class, beanMethod = "reassignMember",
+            operation = @Operation(operationId = "reassignMemberTeam", summary = "Reasignar colaborador a otro equipo (HU-33, Administrador)", security = @SecurityRequirement(name = "bearerAuth"),
+                parameters = @Parameter(name = "teamId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "string", format = "uuid")),
+                requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = TeamHandler.UserEmailRequest.class))),
+                responses = {@ApiResponse(responseCode = "204", description = "Colaborador reasignado"),
+                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+                    @ApiResponse(responseCode = "403", description = "Acceso no permitido"), @ApiResponse(responseCode = "404", description = "Equipo o usuario no encontrado"),
+                    @ApiResponse(responseCode = "409", description = "Ya pertenece al equipo destino"), @ApiResponse(responseCode = "500", description = "Error interno")})),
+        @RouterOperation(path = TeamHandler.TASKS, method = RequestMethod.POST, beanClass = TeamHandler.class, beanMethod = "linkTask",            operation = @Operation(operationId = "linkTaskTeam", summary = "Vincular tarea existente sin equipo (Administrador o Coordinador del equipo)", security = @SecurityRequirement(name = "bearerAuth"),
                 parameters = @Parameter(name = "teamId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "string", format = "uuid")),
                 requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = TeamHandler.LinkTaskRequest.class))),
                 responses = {@ApiResponse(responseCode = "204", description = "Vinculación guardada"),
@@ -75,6 +82,19 @@ public class NotificationRouterRest {
                 parameters = @Parameter(name = "before", in = ParameterIn.QUERY, description = "ID exclusivo del último aviso de la página anterior", schema = @Schema(type = "integer", format = "int64", minimum = "1")),
                 responses = {@ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = NotificationResponse.class)))),
                     @ApiResponse(responseCode = "400", description = "Cursor inválido"), @ApiResponse(responseCode = "401", description = "Token inválido o vencido"),
+                    @ApiResponse(responseCode = "403", description = "Rol no autorizado"), @ApiResponse(responseCode = "500", description = "Error interno")})),
+        @RouterOperation(path = NotificationHandler.READ, method = RequestMethod.POST, beanClass = NotificationHandler.class, beanMethod = "markRead",
+            operation = @Operation(operationId = "markNotificationRead", summary = "Marcar un aviso propio como leído",
+                security = @SecurityRequirement(name = "bearerAuth"),
+                parameters = @Parameter(name = "notificationId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "integer", format = "int64", minimum = "1")),
+                responses = {@ApiResponse(responseCode = "204", description = "Aviso marcado como leído (idempotente)"),
+                    @ApiResponse(responseCode = "400", description = "Identificador inválido"), @ApiResponse(responseCode = "401", description = "Token inválido o vencido"),
+                    @ApiResponse(responseCode = "403", description = "Rol no autorizado"), @ApiResponse(responseCode = "500", description = "Error interno")})),
+        @RouterOperation(path = NotificationHandler.READ_ALL, method = RequestMethod.POST, beanClass = NotificationHandler.class, beanMethod = "markAllRead",
+            operation = @Operation(operationId = "markAllNotificationsRead", summary = "Marcar todos los avisos propios como leídos",
+                security = @SecurityRequirement(name = "bearerAuth"),
+                responses = {@ApiResponse(responseCode = "204", description = "Avisos marcados como leídos (idempotente)"),
+                    @ApiResponse(responseCode = "401", description = "Token inválido o vencido"),
                     @ApiResponse(responseCode = "403", description = "Rol no autorizado"), @ApiResponse(responseCode = "500", description = "Error interno")})),
         @RouterOperation(path = NotificationHandler.STREAM, method = RequestMethod.GET, beanClass = NotificationHandler.class, beanMethod = "stream",
             operation = @Operation(operationId = "streamNotifications", summary = "SSE autenticado de los últimos 50 avisos propios",
@@ -97,8 +117,11 @@ public class NotificationRouterRest {
     public RouterFunction<ServerResponse> notificationRoutes(NotificationHandler notifications, OrganizationSettingsHandler settings, TeamHandler teams) {
         return RouterFunctions.route().GET(TeamHandler.BASE, teams::list).POST(TeamHandler.BASE, teams::create)
                 .PUT(TeamHandler.COORDINATOR, teams::changeCoordinator).POST(TeamHandler.MEMBERS, teams::addMember)
+                .POST(TeamHandler.REASSIGN_MEMBERS, teams::reassignMember)
                 .POST(TeamHandler.TASKS, teams::linkTask).GET(NotificationHandler.STREAM, notifications::stream)
                 .GET(NotificationHandler.BASE, notifications::list)
+                .POST(NotificationHandler.READ, notifications::markRead)
+                .POST(NotificationHandler.READ_ALL, notifications::markAllRead)
                 .GET(OrganizationSettingsHandler.BASE, settings::get)
                 .PUT(OrganizationSettingsHandler.BASE, settings::save).build();
     }
