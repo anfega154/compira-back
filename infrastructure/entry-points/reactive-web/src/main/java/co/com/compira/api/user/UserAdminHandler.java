@@ -7,6 +7,7 @@ import co.com.compira.usecase.updateuser.UpdateUserUseCase;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.reactive.TransactionalOperator;
@@ -28,6 +29,7 @@ public class UserAdminHandler {
     public static final String BASE = "/api/v1/users";
     public static final String ROLES = BASE + "/roles";
     public static final String PASSWORD_RESET = BASE + "/password-reset";
+    public static final String STATUS = BASE + "/status";
 
     private final ListUsersUseCase listUsers;
     private final UpdateUserUseCase updateUser;
@@ -55,6 +57,10 @@ public class UserAdminHandler {
             @NotBlank(message = REQUIRED_FIELD)
             @Size(min = PASSWORD_MIN_LENGTH, max = PASSWORD_MAX_LENGTH, message = PASSWORD_LENGTH) String temporaryPassword) { }
 
+    public record SetUserStatusRequest(
+            @NotBlank(message = REQUIRED_FIELD) @Email(message = INVALID_EMAIL) String email,
+            @NotNull(message = REQUIRED_FIELD) Boolean active) { }
+
     public Mono<ServerResponse> list(ServerRequest request) {
         return request.principal()
                 .flatMap(principal -> listUsers.execute(principal.getName()).map(mapper::toResponse).collectList())
@@ -77,6 +83,16 @@ public class UserAdminHandler {
                 .flatMap(principal -> body(request, ResetPasswordRequest.class)
                         .flatMap(input -> updateUser.resetPassword(principal.getName(), input.email(), input.temporaryPassword())))
                 .then(ServerResponse.noContent().build())
+                .onErrorResume(errors::handle);
+    }
+
+    public Mono<ServerResponse> setStatus(ServerRequest request) {
+        return request.principal()
+                .flatMap(principal -> body(request, SetUserStatusRequest.class)
+                        .flatMap(input -> updateUser.setActive(principal.getName(), input.email(), input.active())))
+                .map(mapper::toResponse)
+                .flatMap(user -> ServerResponse.ok().bodyValue(user))
+                .as(transactions::transactional)
                 .onErrorResume(errors::handle);
     }
 

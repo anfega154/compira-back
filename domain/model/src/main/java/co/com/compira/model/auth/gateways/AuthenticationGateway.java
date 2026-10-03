@@ -18,6 +18,10 @@ public interface AuthenticationGateway {
 
     Mono<Void> deleteUser(String username);
 
+    Mono<Void> disableUser(String username);
+
+    Mono<Void> enableUser(String username);
+
     Mono<Void> resetUserPassword(String username, String temporaryPassword);
 
     Mono<AuthenticationResult> login(LoginCommand command);

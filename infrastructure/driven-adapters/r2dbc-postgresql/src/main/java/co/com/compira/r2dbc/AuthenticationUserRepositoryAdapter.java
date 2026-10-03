@@ -29,6 +29,7 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
     private static final String LOG_CREATE_PENDING_USER = "Persistiendo perfil local pendiente. email={} cognitoSub={}";
     private static final String LOG_FIND_USER = "Consultando perfil local por correo. email={}";
     private static final String LOG_ACTIVATE_USER = "Activando perfil local. email={}";
+    private static final String LOG_DISABLE_USER_PROFILE = "Inactivando perfil local. email={}";
     private static final String LOG_COMPLETE_LOGIN = "Completando ingreso y activación local. email={}";
     private static final String LOG_DELETE_USER = "Eliminando perfil local. email={}";
     private static final String LOG_ASSIGN_ROLE = "Asignando rol local. userId={} role={}";
@@ -146,6 +147,21 @@ public class AuthenticationUserRepositoryAdapter implements ApplicationUserRepos
         LOGGER.info(LOG_ACTIVATE_USER, AuthenticationLogSanitizer.maskEmail(email));
         return databaseClient.sql(ACTIVATE_USER_QUERY)
                 .bind("status", UserStatus.ACTIVE.name())
+                .bind("email", email)
+                .fetch()
+                .one()
+                .switchIfEmpty(Mono.error(new CompiraException(
+                        AuthenticationErrorCode.LOCAL_USER_NOT_FOUND,
+                        AuthenticationMessage.LOCAL_USER_NOT_FOUND,
+                        ErrorCategory.NOT_FOUND)))
+                .flatMap(this::buildApplicationUser);
+    }
+
+    @Override
+    public Mono<ApplicationUser> disableUser(String email) {
+        LOGGER.info(LOG_DISABLE_USER_PROFILE, AuthenticationLogSanitizer.maskEmail(email));
+        return databaseClient.sql(ACTIVATE_USER_QUERY)
+                .bind("status", UserStatus.DISABLED.name())
                 .bind("email", email)
                 .fetch()
                 .one()
