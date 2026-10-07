@@ -117,21 +117,6 @@ public class AuthRouterRest {
                                     @ApiResponse(responseCode = "204", description = "Contraseña actualizada")
                             }
                     )
-            ),
-            @RouterOperation(
-                    path = "/api/v1/auth/users",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "deleteUser",
-                    method = RequestMethod.DELETE,
-                    operation = @Operation(
-                            summary = "Eliminar un usuario (solo administrador)",
-                            responses = {
-                                    @ApiResponse(responseCode = "204", description = "Usuario eliminado"),
-                                    @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
-                                    @ApiResponse(responseCode = "403", description = "Requiere rol Administrador"),
-                                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
-                            }
-                    )
             )
     })
     @Bean
@@ -145,8 +130,7 @@ public class AuthRouterRest {
                                 .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
                                 .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                                 .POST(AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
-                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
-                                .DELETE(AuthenticationRoute.USERS, authenticationHandler::deleteUser)))
+                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)))
                 .build();
     }
 }

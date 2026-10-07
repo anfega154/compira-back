@@ -1,7 +1,6 @@
 package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
-import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
@@ -72,10 +71,6 @@ public class AuthenticationRequestValidator {
     }
 
     public Mono<ConfirmPasswordRecoveryRequest> validateConfirmPasswordRecoveryRequest(ConfirmPasswordRecoveryRequest request) {
-        return validate(request);
-    }
-
-    public Mono<DeleteUserRequest> validateDeleteUserRequest(DeleteUserRequest request) {
         return validate(request);
     }
 

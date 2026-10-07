@@ -72,7 +72,7 @@ public class ResourceServerConfig {
                         .pathMatchers(HttpMethod.GET, TeamHandler.BASE).hasAnyAuthority(ADMINISTRATOR, COORDINATOR)
                         .pathMatchers(HttpMethod.POST, TeamHandler.MEMBERS, TeamHandler.TASKS).hasAnyAuthority(ADMINISTRATOR, COORDINATOR)
                         .pathMatchers(TeamHandler.BASE, TeamHandler.BASE + DESCENDANTS).hasAuthority(ADMINISTRATOR)
-                        .pathMatchers(AUTH + AuthenticationRoute.REGISTER, AUTH + AuthenticationRoute.USERS, OrganizationSettingsHandler.BASE)
+                        .pathMatchers(AUTH + AuthenticationRoute.REGISTER, OrganizationSettingsHandler.BASE)
                         .hasAuthority(ADMINISTRATOR)
                         .pathMatchers(UserAdminHandler.BASE, UserAdminHandler.BASE + DESCENDANTS).hasAuthority(ADMINISTRATOR)
                         .pathMatchers(AUTH + AuthenticationRoute.LOGIN, AUTH + AuthenticationRoute.LOGIN + DESCENDANTS, AUTH + AuthenticationRoute.PASSWORD_RECOVERY,

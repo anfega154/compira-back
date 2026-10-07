@@ -1,7 +1,6 @@
 package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
-import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
@@ -94,10 +93,6 @@ public final class AuthenticationApiTestData {
 
     public static ConfirmPasswordRecoveryRequest confirmPasswordRecoveryRequest() {
         return new ConfirmPasswordRecoveryRequest("john.doe@compira.co", "123456", "NewPassword123!");
-    }
-
-    public static DeleteUserRequest deleteUserRequest() {
-        return new DeleteUserRequest("john.doe@compira.co");
     }
 
     public static ResendConfirmationCodeRequest resendConfirmationCodeRequest() {
