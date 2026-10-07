@@ -93,8 +93,6 @@ class ResourceServerConfigTest {
                 .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
         client.post().uri("/api/v1/auth/register").headers(headers -> headers.setBearerAuth("valid-token"))
                 .exchange().expectStatus().isForbidden();
-        client.delete().uri("/api/v1/auth/users").headers(headers -> headers.setBearerAuth("valid-token"))
-                .exchange().expectStatus().isForbidden();
     }
 
     @Test
@@ -103,8 +101,14 @@ class ResourceServerConfigTest {
                 .thenReturn(Mono.just(SecurityTestData.user("ADMINISTRATOR", UserStatus.ACTIVE)));
         client.post().uri("/api/v1/auth/register").headers(headers -> headers.setBearerAuth("valid-token"))
                 .exchange().expectStatus().isOk();
+    }
+
+    @Test
+    void deniesRetiredPhysicalUserDeletionEvenForActiveAdministrators() {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user("ADMINISTRATOR", UserStatus.ACTIVE)));
         client.delete().uri("/api/v1/auth/users").headers(headers -> headers.setBearerAuth("valid-token"))
-                .exchange().expectStatus().isOk();
+                .exchange().expectStatus().isForbidden();
     }
 
     @Test

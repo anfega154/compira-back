@@ -8,7 +8,6 @@ import co.com.compira.model.auth.AuthenticationStatus;
 import co.com.compira.model.auth.AuthenticationTokens;
 import co.com.compira.model.auth.CodeDeliveryDetails;
 import co.com.compira.model.auth.ConfirmPasswordRecoveryCommand;
-import co.com.compira.model.auth.DeleteUserCommand;
 import co.com.compira.model.auth.LoginCommand;
 import co.com.compira.model.auth.LogoutCommand;
 import co.com.compira.model.auth.MfaChannel;
@@ -66,10 +65,6 @@ public final class AuthenticationTestData {
 
     public static ConfirmPasswordRecoveryCommand confirmPasswordRecoveryCommand() {
         return new ConfirmPasswordRecoveryCommand("john.doe@compira.co", "123456", "NewPassword123!");
-    }
-
-    public static DeleteUserCommand deleteUserCommand() {
-        return new DeleteUserCommand("john.doe@compira.co");
     }
 
     public static ResendConfirmationCodeCommand resendConfirmationCodeCommand() {

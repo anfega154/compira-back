@@ -11,6 +11,7 @@ import co.com.compira.model.task.TaskMessage;
 import co.com.compira.model.task.TaskUser;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
+import co.com.compira.model.team.gateways.TeamRepositoryGateway;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -18,11 +19,14 @@ import java.util.UUID;
 
 public class GetTaskHistoryUseCase {
     private final TaskRepositoryGateway taskRepositoryGateway;
+    private final TeamRepositoryGateway teamRepositoryGateway;
     private final TaskAuthorization taskAuthorization;
 
     public GetTaskHistoryUseCase(TaskRepositoryGateway taskRepositoryGateway,
+                                 TeamRepositoryGateway teamRepositoryGateway,
                                  TaskUserDirectoryGateway taskUserDirectoryGateway) {
         this.taskRepositoryGateway = taskRepositoryGateway;
+        this.teamRepositoryGateway = teamRepositoryGateway;
         this.taskAuthorization = new TaskAuthorization(taskUserDirectoryGateway);
     }
 
@@ -33,16 +37,20 @@ public class GetTaskHistoryUseCase {
     }
 
     private Mono<Task> ensureScope(TaskUser actor, Task task) {
-        boolean isAdministrator = actor.hasRole(RoleCode.ADMINISTRATOR.name());
-        boolean isOwningCoordinator = actor.hasRole(RoleCode.COORDINATOR.name())
-                && actor.id().equals(task.createdByUserId());
-        if (isAdministrator || isOwningCoordinator) {
+        if (actor.hasRole(RoleCode.ADMINISTRATOR.name())) {
             return Mono.just(task);
         }
-        return Mono.error(new CompiraException(
-                TaskErrorCode.ACTOR_NOT_COORDINATOR,
-                TaskMessage.ACTOR_NOT_COORDINATOR,
-                ErrorCategory.FORBIDDEN));
+        if (actor.hasRole(RoleCode.COORDINATOR.name())) {
+            return requireCurrentTeamCoordinator(actor, task);
+        }
+        return Mono.error(forbidden());
+    }
+
+    private Mono<Task> requireCurrentTeamCoordinator(TaskUser actor, Task task) {
+        return teamRepositoryGateway.findByTaskId(task.id())
+                .filter(team -> actor.id().equals(team.coordinatorUserId()))
+                .map(team -> task)
+                .switchIfEmpty(Mono.error(forbidden()));
     }
 
     private Mono<Task> loadTask(UUID taskId) {
@@ -51,5 +59,12 @@ public class GetTaskHistoryUseCase {
                         TaskErrorCode.TASK_NOT_FOUND,
                         TaskMessage.TASK_NOT_FOUND,
                         ErrorCategory.NOT_FOUND)));
+    }
+
+    private CompiraException forbidden() {
+        return new CompiraException(
+                TaskErrorCode.ACTOR_NOT_COORDINATOR,
+                TaskMessage.ACTOR_NOT_COORDINATOR,
+                ErrorCategory.FORBIDDEN);
     }
 }

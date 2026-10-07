@@ -1,7 +1,6 @@
 package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
-import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
@@ -12,7 +11,6 @@ import co.com.compira.model.auth.AuthenticationLogSanitizer;
 import co.com.compira.api.auth.mapper.AuthenticationRequestMapper;
 import co.com.compira.api.auth.mapper.AuthenticationResponseMapper;
 import co.com.compira.usecase.confirmpasswordrecovery.ConfirmPasswordRecoveryUseCase;
-import co.com.compira.usecase.deleteuser.DeleteUserUseCase;
 import co.com.compira.usecase.login.LoginUseCase;
 import co.com.compira.usecase.logout.LogoutUseCase;
 import co.com.compira.usecase.registeruser.RegisterUserUseCase;
@@ -44,8 +42,6 @@ public class AuthenticationHandler {
     private static final String LOG_PASSWORD_RECOVERY_SUCCESS = "Recuperación de contraseña iniciada. email={} medio={}";
     private static final String LOG_PASSWORD_RECOVERY_CONFIRM_REQUEST = "Inicio confirmación de recuperación de contraseña. email={}";
     private static final String LOG_PASSWORD_RECOVERY_CONFIRM_SUCCESS = "Confirmación de recuperación de contraseña completada. email={}";
-    private static final String LOG_DELETE_USER_REQUEST = "Inicio eliminación de usuario. email={}";
-    private static final String LOG_DELETE_USER_SUCCESS = "Eliminación de usuario completada. email={}";
     private static final String LOG_RESEND_CODE_REQUEST = "Inicio reenvío de código de confirmación. email={}";
     private static final String LOG_RESEND_CODE_SUCCESS = "Reenvío de código completado. email={} medio={}";
 
@@ -55,7 +51,6 @@ public class AuthenticationHandler {
     private final RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase;
     private final StartPasswordRecoveryUseCase startPasswordRecoveryUseCase;
     private final ConfirmPasswordRecoveryUseCase confirmPasswordRecoveryUseCase;
-    private final DeleteUserUseCase deleteUserUseCase;
     private final ResendConfirmationCodeUseCase resendConfirmationCodeUseCase;
     private final AuthenticationRequestValidator authenticationRequestValidator;
     private final AuthenticationRequestMapper authenticationRequestMapper;
@@ -68,7 +63,6 @@ public class AuthenticationHandler {
                                  RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase,
                                  StartPasswordRecoveryUseCase startPasswordRecoveryUseCase,
                                  ConfirmPasswordRecoveryUseCase confirmPasswordRecoveryUseCase,
-                                 DeleteUserUseCase deleteUserUseCase,
                                  ResendConfirmationCodeUseCase resendConfirmationCodeUseCase,
                                  AuthenticationRequestValidator authenticationRequestValidator,
                                  AuthenticationRequestMapper authenticationRequestMapper,
@@ -80,7 +74,6 @@ public class AuthenticationHandler {
         this.respondAuthenticationChallengeUseCase = respondAuthenticationChallengeUseCase;
         this.startPasswordRecoveryUseCase = startPasswordRecoveryUseCase;
         this.confirmPasswordRecoveryUseCase = confirmPasswordRecoveryUseCase;
-        this.deleteUserUseCase = deleteUserUseCase;
         this.resendConfirmationCodeUseCase = resendConfirmationCodeUseCase;
         this.authenticationRequestValidator = authenticationRequestValidator;
         this.authenticationRequestMapper = authenticationRequestMapper;
@@ -184,19 +177,6 @@ public class AuthenticationHandler {
                         .flatMap(confirmPasswordRecoveryUseCase::execute)
                         .doOnSuccess(ignored -> LOGGER.info(
                                 LOG_PASSWORD_RECOVERY_CONFIRM_SUCCESS,
-                                AuthenticationLogSanitizer.maskEmail(request.email())))
-                        .then(ServerResponse.noContent().build()))
-                .onErrorResume(authenticationErrorHandler::handle);
-    }
-
-    public Mono<ServerResponse> deleteUser(ServerRequest serverRequest) {
-        return serverRequest.bodyToMono(DeleteUserRequest.class)
-                .doOnNext(request -> LOGGER.info(LOG_DELETE_USER_REQUEST, AuthenticationLogSanitizer.maskEmail(request.email())))
-                .flatMap(request -> authenticationRequestValidator.validateDeleteUserRequest(request)
-                        .map(authenticationRequestMapper::toCommand)
-                        .flatMap(deleteUserUseCase::execute)
-                        .doOnSuccess(ignored -> LOGGER.info(
-                                LOG_DELETE_USER_SUCCESS,
                                 AuthenticationLogSanitizer.maskEmail(request.email())))
                         .then(ServerResponse.noContent().build()))
                 .onErrorResume(authenticationErrorHandler::handle);
