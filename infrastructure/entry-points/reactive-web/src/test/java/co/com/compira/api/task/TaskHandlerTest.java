@@ -3,6 +3,11 @@ package co.com.compira.api.task;
 import co.com.compira.api.router.TaskRouterRest;
 import co.com.compira.api.task.mapper.TaskRequestMapper;
 import co.com.compira.api.task.mapper.TaskResponseMapper;
+import co.com.compira.model.common.error.CompiraException;
+import co.com.compira.model.common.error.ErrorCategory;
+import co.com.compira.model.task.CreateTaskCommand;
+import co.com.compira.model.task.TaskErrorCode;
+import co.com.compira.model.task.TaskMessage;
 import co.com.compira.model.task.TaskStatus;
 import co.com.compira.usecase.addtaskobservation.AddTaskObservationUseCase;
 import co.com.compira.usecase.approvetask.ApproveTaskUseCase;
@@ -18,7 +23,9 @@ import co.com.compira.usecase.reassigntask.ReassignTaskUseCase;
 import co.com.compira.usecase.updatetaskstatus.UpdateTaskStatusUseCase;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
@@ -27,7 +34,11 @@ import reactor.core.publisher.Mono;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class TaskHandlerTest {
@@ -85,7 +96,7 @@ class TaskHandlerTest {
 
     @Test
     void shouldCreateTask() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.just(TaskApiTestData.task(TaskStatus.PENDING)));
+        givenTaskCreated();
 
         webTestClient.post()
                 .uri(BASE)
@@ -119,11 +130,22 @@ class TaskHandlerTest {
 
     private static final String TEAM_ID = "55555555-5555-5555-5555-555555555555";
 
+    /** Fecha límite futura de los cuerpos válidos; el handler no la compara con el reloj (lo hace el caso de uso). */
+    private static final String FUTURE_DUE_DATE = "2030-01-01T10:00:00Z";
+
+    private void givenTaskCreated() {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.just(TaskApiTestData.task(TaskStatus.PENDING)));
+    }
+
+    private void givenUseCaseFails(String code, String message, ErrorCategory category) {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new CompiraException(code, message, category)));
+    }
+
     private static Map<String, Object> validCreateBody() {
         Map<String, Object> body = new java.util.HashMap<>();
         body.put("title", "Preparar informe");
         body.put("description", "Detalle de la tarea");
-        body.put("dueDate", "2030-01-01T10:00:00Z");
+        body.put("dueDate", FUTURE_DUE_DATE);
         body.put("teamId", TEAM_ID);
         return body;
     }
@@ -149,13 +171,13 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 con ese mensaje y el caso de uso nunca se invoca.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Sin descripción: 400 'La descripción de la tarea es obligatoria'")
+    @DisplayName("E3 - Sin descripción: 400 'La descripción de la tarea es obligatoria'")
     void shouldRejectCreateWithoutDescription() {
         postCreate(createBodyWithout("description"))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.DESCRIPTION_REQUIRED);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -165,13 +187,13 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 y el caso de uso nunca se invoca.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Descripción en blanco: 400 'La descripción de la tarea es obligatoria'")
+    @DisplayName("E3 - Descripción en blanco: 400 'La descripción de la tarea es obligatoria'")
     void shouldRejectCreateWithBlankDescription() {
         postCreate(createBodyWith("description", "   "))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.DESCRIPTION_REQUIRED);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -181,13 +203,13 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 con ese mensaje y el caso de uso nunca se invoca.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Sin fecha límite: 400 'La fecha límite es obligatoria'")
+    @DisplayName("E3 - Sin fecha límite: 400 'La fecha límite es obligatoria'")
     void shouldRejectCreateWithoutDueDate() {
         postCreate(createBodyWithout("dueDate"))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.DUE_DATE_REQUIRED);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -197,14 +219,34 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 con "La descripción de la tarea es obligatoria, La fecha límite es obligatoria".
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Sin descripción ni fecha: 400 con ambos mensajes ordenados")
+    @DisplayName("E3 - Sin descripción ni fecha: 400 con ambos mensajes ordenados")
     void shouldRejectCreateWithoutDescriptionNorDueDate() {
         postCreate(createBodyWithout("description", "dueDate"))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(
                         TaskValidationMessage.DESCRIPTION_REQUIRED + ", " + TaskValidationMessage.DUE_DATE_REQUIRED);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
+    }
+
+    /**
+     * HU Crear tarea - E3 (todos los campos obligatorios vacíos).
+     * Caso: la solicitud llega sin título, descripción, fecha límite ni equipo.
+     * Esperado: se informan los cuatro mensajes, ordenados alfabéticamente y separados por ", ", y la tarea no se crea.
+     * Resultado: HTTP 400 con los cuatro mensajes y el caso de uso nunca se invoca.
+     */
+    @Test
+    @DisplayName("E3 - Sin título, descripción, fecha ni equipo: 400 con los cuatro mensajes ordenados")
+    void shouldRejectCreateWithoutAnyRequiredField() {
+        postCreate(createBodyWithout("title", "description", "dueDate", "teamId"))
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.message").isEqualTo(String.join(", ",
+                        TaskValidationMessage.TEAM_REQUIRED,
+                        TaskValidationMessage.TITLE_REQUIRED,
+                        TaskValidationMessage.DESCRIPTION_REQUIRED,
+                        TaskValidationMessage.DUE_DATE_REQUIRED));
+
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -214,16 +256,16 @@ class TaskHandlerTest {
      * Resultado: HTTP 201 y `responsibleEmail` nulo en el comando enviado al caso de uso.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E1 - Cuerpo completo sin responsable: 201 y responsable opcional")
+    @DisplayName("E1 - Cuerpo completo sin responsable: 201 y responsable opcional")
     void shouldCreateTaskWithoutResponsible() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.just(TaskApiTestData.task(TaskStatus.PENDING)));
+        givenTaskCreated();
 
         postCreate(validCreateBody()).expectStatus().isCreated();
 
-        org.mockito.ArgumentCaptor<co.com.compira.model.task.CreateTaskCommand> command =
-                org.mockito.ArgumentCaptor.forClass(co.com.compira.model.task.CreateTaskCommand.class);
-        org.mockito.Mockito.verify(createTaskUseCase).execute(command.capture());
-        org.junit.jupiter.api.Assertions.assertNull(command.getValue().responsibleEmail());
+        ArgumentCaptor<CreateTaskCommand> command =
+                ArgumentCaptor.forClass(CreateTaskCommand.class);
+        verify(createTaskUseCase).execute(command.capture());
+        assertNull(command.getValue().responsibleEmail());
     }
 
     /**
@@ -233,9 +275,9 @@ class TaskHandlerTest {
      * Resultado: HTTP 201.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Descripción de 2000 caracteres es aceptada")
+    @DisplayName("E3 - Descripción de 2000 caracteres es aceptada")
     void shouldAcceptDescriptionWithMaximumLength() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.just(TaskApiTestData.task(TaskStatus.PENDING)));
+        givenTaskCreated();
 
         postCreate(createBodyWith("description", "a".repeat(2000))).expectStatus().isCreated();
     }
@@ -256,23 +298,24 @@ class TaskHandlerTest {
      * Resultado: HTTP 201, estado "PENDING" y comando con título, descripción, responsable y equipo de la solicitud.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E2 - Solicitud completa: 201, tarea Pendiente y datos mapeados al comando")
+    @DisplayName("E2 - Solicitud completa: 201, tarea Pendiente y datos mapeados al comando")
     void shouldMapFullRequestToCommandAndRespondCreated() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.just(TaskApiTestData.task(TaskStatus.PENDING)));
+        givenTaskCreated();
 
         postCreate(Map.of("title", "Preparar informe", "description", "Detalle",
-                "dueDate", "2030-01-01T10:00:00Z", "responsibleEmail", "colab@compira.co", "teamId", TEAM_ID))
+                "dueDate", FUTURE_DUE_DATE, "responsibleEmail", "colab@compira.co", "teamId", TEAM_ID))
                 .expectStatus().isCreated()
                 .expectBody().jsonPath("$.status").isEqualTo("PENDING");
 
-        org.mockito.ArgumentCaptor<co.com.compira.model.task.CreateTaskCommand> command =
-                org.mockito.ArgumentCaptor.forClass(co.com.compira.model.task.CreateTaskCommand.class);
-        org.mockito.Mockito.verify(createTaskUseCase).execute(command.capture());
-        org.junit.jupiter.api.Assertions.assertEquals(TaskApiTestData.ACTOR_EMAIL, command.getValue().actorEmail());
-        org.junit.jupiter.api.Assertions.assertEquals("Preparar informe", command.getValue().title());
-        org.junit.jupiter.api.Assertions.assertEquals("Detalle", command.getValue().description());
-        org.junit.jupiter.api.Assertions.assertEquals("colab@compira.co", command.getValue().responsibleEmail());
-        org.junit.jupiter.api.Assertions.assertEquals(java.util.UUID.fromString(TEAM_ID), command.getValue().teamId());
+        ArgumentCaptor<CreateTaskCommand> command =
+                ArgumentCaptor.forClass(CreateTaskCommand.class);
+        verify(createTaskUseCase).execute(command.capture());
+        assertEquals(TaskApiTestData.ACTOR_EMAIL, command.getValue().actorEmail());
+        assertEquals("Preparar informe", command.getValue().title());
+        assertEquals("Detalle", command.getValue().description());
+        assertEquals("colab@compira.co", command.getValue().responsibleEmail());
+        assertEquals(java.util.UUID.fromString(TEAM_ID), command.getValue().teamId());
+        assertEquals(java.time.OffsetDateTime.parse(FUTURE_DUE_DATE).toInstant(), command.getValue().dueDate().toInstant());
     }
 
     /**
@@ -282,9 +325,9 @@ class TaskHandlerTest {
      * Resultado: HTTP 201.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Título de 150 caracteres es aceptado")
+    @DisplayName("E3 - Título de 150 caracteres es aceptado")
     void shouldAcceptTitleWithMaximumLength() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.just(TaskApiTestData.task(TaskStatus.PENDING)));
+        givenTaskCreated();
 
         postCreate(createBodyWith("title", "a".repeat(150))).expectStatus().isCreated();
     }
@@ -296,13 +339,13 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 y el caso de uso nunca se invoca.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Título de 151 caracteres: 400 y no se crea la tarea")
+    @DisplayName("E3 - Título de 151 caracteres: 400 y no se crea la tarea")
     void shouldRejectTitleLongerThanMaximumLength() {
         postCreate(createBodyWith("title", "a".repeat(151)))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.TITLE_LENGTH);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -312,13 +355,13 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 y el caso de uso nunca se invoca.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Título en blanco: 400 y no se crea la tarea")
+    @DisplayName("E3 - Título en blanco: 400 y no se crea la tarea")
     void shouldRejectBlankTitle() {
         postCreate(createBodyWith("title", "   "))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.TITLE_REQUIRED);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -328,13 +371,13 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 y el caso de uso nunca se invoca.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Sin equipo: 400 y no se crea la tarea")
+    @DisplayName("E3 - Sin equipo: 400 y no se crea la tarea")
     void shouldRejectCreateWithoutTeam() {
         postCreate(createBodyWithout("teamId"))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.TEAM_REQUIRED);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -344,13 +387,13 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 y el caso de uso nunca se invoca.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E3 - Descripción sobre el máximo vigente (2000): 400 y no se crea la tarea")
+    @DisplayName("E3 - Descripción sobre el máximo vigente (2000): 400 y no se crea la tarea")
     void shouldRejectDescriptionLongerThanMaximumLength() {
         postCreate(createBodyWith("description", "a".repeat(2001)))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.DESCRIPTION_LENGTH);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -360,13 +403,13 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 y el caso de uso nunca se invoca.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E5 - Correo de responsable con formato inválido: 400 y no se crea la tarea")
+    @DisplayName("E5 - Correo de responsable con formato inválido: 400 y no se crea la tarea")
     void shouldRejectInvalidResponsibleEmailFormat() {
         postCreate(createBodyWith("responsibleEmail", "no-es-un-correo"))
                 .expectStatus().isBadRequest()
                 .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.RESPONSIBLE_EMAIL_INVALID);
 
-        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+        verifyNoInteractions(createTaskUseCase);
     }
 
     /**
@@ -376,11 +419,9 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 con código TASK_011 y el mensaje esperado.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E4 - Fecha límite pasada: 400 con el mensaje esperado")
+    @DisplayName("E4 - Fecha límite pasada: 400 con el mensaje esperado")
     void shouldRespondBadRequestWhenDueDateIsInThePast() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
-                co.com.compira.model.task.TaskErrorCode.DUE_DATE_IN_PAST, co.com.compira.model.task.TaskMessage.DUE_DATE_IN_PAST,
-                co.com.compira.model.common.error.ErrorCategory.BAD_REQUEST)));
+        givenUseCaseFails(TaskErrorCode.DUE_DATE_IN_PAST, TaskMessage.DUE_DATE_IN_PAST, ErrorCategory.BAD_REQUEST);
 
         postCreate(createBodyWith("dueDate", "2020-01-01T10:00:00Z"))
                 .expectStatus().isBadRequest()
@@ -396,11 +437,9 @@ class TaskHandlerTest {
      * Resultado: HTTP 404 con código TASK_004 y el mensaje esperado.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E5 - Responsable no encontrado: 404 con el mensaje esperado")
+    @DisplayName("E5 - Responsable no encontrado: 404 con el mensaje esperado")
     void shouldRespondNotFoundWhenResponsibleDoesNotExist() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
-                co.com.compira.model.task.TaskErrorCode.RESPONSIBLE_NOT_FOUND, co.com.compira.model.task.TaskMessage.RESPONSIBLE_NOT_FOUND,
-                co.com.compira.model.common.error.ErrorCategory.NOT_FOUND)));
+        givenUseCaseFails(TaskErrorCode.RESPONSIBLE_NOT_FOUND, TaskMessage.RESPONSIBLE_NOT_FOUND, ErrorCategory.NOT_FOUND);
 
         postCreate(createBodyWith("responsibleEmail", "nadie@compira.co"))
                 .expectStatus().isNotFound()
@@ -416,11 +455,10 @@ class TaskHandlerTest {
      * Resultado: HTTP 400 con código TASK_005 y el mensaje esperado.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E5 - Responsable sin rol de colaborador: 400 con el mensaje esperado")
+    @DisplayName("E5 - Responsable sin rol de colaborador: 400 con el mensaje esperado")
     void shouldRespondBadRequestWhenResponsibleIsNotCollaborator() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
-                co.com.compira.model.task.TaskErrorCode.RESPONSIBLE_NOT_COLLABORATOR, co.com.compira.model.task.TaskMessage.RESPONSIBLE_NOT_COLLABORATOR,
-                co.com.compira.model.common.error.ErrorCategory.BAD_REQUEST)));
+        givenUseCaseFails(TaskErrorCode.RESPONSIBLE_NOT_COLLABORATOR, TaskMessage.RESPONSIBLE_NOT_COLLABORATOR,
+                ErrorCategory.BAD_REQUEST);
 
         postCreate(createBodyWith("responsibleEmail", "jefe@compira.co"))
                 .expectStatus().isBadRequest()
@@ -436,11 +474,9 @@ class TaskHandlerTest {
      * Resultado: HTTP 409 con el mensaje esperado.
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E5 - Responsable de otro equipo: 409 con el mensaje esperado")
+    @DisplayName("E5 - Responsable de otro equipo: 409 con el mensaje esperado")
     void shouldRespondConflictWhenResponsibleBelongsToAnotherTeam() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
-                "TEAM_001", "El responsable debe pertenecer al equipo de la tarea",
-                co.com.compira.model.common.error.ErrorCategory.CONFLICT)));
+        givenUseCaseFails("TEAM_001", "El responsable debe pertenecer al equipo de la tarea", ErrorCategory.CONFLICT);
 
         postCreate(createBodyWith("responsibleEmail", "otro@compira.co"))
                 .expectStatus().isEqualTo(409)
@@ -454,11 +490,9 @@ class TaskHandlerTest {
      * Resultado: HTTP 403 con código TASK_007 y el mensaje "Esta operación solo puede realizarla un coordinador".
      */
     @Test
-    @org.junit.jupiter.api.DisplayName("E8 - Usuario sin rol de coordinador: 403 con el mensaje esperado")
+    @DisplayName("E8 - Usuario sin rol de coordinador: 403 con el mensaje esperado")
     void shouldRespondForbiddenWhenActorIsNotCoordinator() {
-        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
-                co.com.compira.model.task.TaskErrorCode.ACTOR_NOT_COORDINATOR, co.com.compira.model.task.TaskMessage.ACTOR_NOT_COORDINATOR,
-                co.com.compira.model.common.error.ErrorCategory.FORBIDDEN)));
+        givenUseCaseFails(TaskErrorCode.ACTOR_NOT_COORDINATOR, TaskMessage.ACTOR_NOT_COORDINATOR, ErrorCategory.FORBIDDEN);
 
         postCreate(validCreateBody())
                 .expectStatus().isForbidden()
