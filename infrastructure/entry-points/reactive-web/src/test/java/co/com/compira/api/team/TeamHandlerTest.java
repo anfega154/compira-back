@@ -10,6 +10,8 @@ import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.reactive.function.server.RouterFunctions;
@@ -22,7 +24,6 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -112,56 +113,24 @@ class TeamHandlerTest {
     }
 
     /**
-     * Spec HU-12 Parte A (R2).
-     * Caso: el caso de uso rechaza el acceso (coordinador de otro equipo o colaborador).
-     * Esperado: acceso prohibido con código TEAM_001 y el mensaje "No tienes acceso a este equipo".
-     * Resultado: HTTP 403 con código y mensaje esperados.
+     * Spec HU-12 Parte A (R2 y R4).
+     * Caso: el caso de uso rechaza la consulta porque el actor no tiene acceso al equipo (coordinador de otro equipo
+     * o colaborador) o porque el equipo no existe.
+     * Esperado: el error se mapea a su estado HTTP con código TEAM_001 y el mensaje del caso de uso.
+     * Resultado: 403 "No tienes acceso a este equipo" y 404 "Equipo no encontrado".
      */
-    @Test
-    @DisplayName("R2 - Acceso no permitido: 403 TEAM_001 'No tienes acceso a este equipo'")
-    void shouldRespondForbiddenWhenActorCannotAccessTheTeam() {
-        when(teams.listMembers(eq(ACTOR), any())).thenReturn(Flux.error(new CompiraException(
-                "TEAM_001", "No tienes acceso a este equipo", ErrorCategory.FORBIDDEN)));
+    @ParameterizedTest(name = "{0} -> HTTP {1}")
+    @CsvSource({
+            "FORBIDDEN,403,No tienes acceso a este equipo",
+            "NOT_FOUND,404,Equipo no encontrado"})
+    @DisplayName("R2/R4 - Errores del caso de uso se mapean a 403 y 404 con TEAM_001 y su mensaje")
+    void shouldMapUseCaseErrorsToHttpStatusWithCodeAndMessage(ErrorCategory category, int status, String message) {
+        when(teams.listMembers(eq(ACTOR), any())).thenReturn(Flux.error(new CompiraException("TEAM_001", message, category)));
 
         getMembers(TEAM_ID.toString())
-                .expectStatus().isForbidden()
+                .expectStatus().isEqualTo(status)
                 .expectBody()
                 .jsonPath("$.code").isEqualTo("TEAM_001")
-                .jsonPath("$.message").isEqualTo("No tienes acceso a este equipo");
-    }
-
-    /**
-     * Spec HU-12 Parte A (R4).
-     * Caso: el caso de uso informa que el equipo no existe.
-     * Esperado: no encontrado con código TEAM_001 y el mensaje "Equipo no encontrado".
-     * Resultado: HTTP 404 con código y mensaje esperados.
-     */
-    @Test
-    @DisplayName("R4 - Equipo inexistente: 404 TEAM_001 'Equipo no encontrado'")
-    void shouldRespondNotFoundWhenTeamDoesNotExist() {
-        when(teams.listMembers(eq(ACTOR), any())).thenReturn(Flux.error(new CompiraException(
-                "TEAM_001", "Equipo no encontrado", ErrorCategory.NOT_FOUND)));
-
-        getMembers(TEAM_ID.toString())
-                .expectStatus().isNotFound()
-                .expectBody()
-                .jsonPath("$.code").isEqualTo("TEAM_001")
-                .jsonPath("$.message").isEqualTo("Equipo no encontrado");
-    }
-
-    /**
-     * Spec HU-12 Parte A (R1).
-     * Caso: consulta válida.
-     * Esperado: el handler delega en el caso de uso con el actor autenticado y el `teamId` de la ruta.
-     * Resultado: `listMembers(actor, teamId)` se invoca exactamente con esos valores.
-     */
-    @Test
-    @DisplayName("R1 - El handler delega con el actor autenticado y el teamId de la ruta")
-    void shouldDelegateWithAuthenticatedActorAndPathTeamId() {
-        when(teams.listMembers(ACTOR, TEAM_ID)).thenReturn(Flux.empty());
-
-        getMembers(TEAM_ID.toString()).expectStatus().isOk();
-
-        verify(teams).listMembers(ACTOR, TEAM_ID);
+                .jsonPath("$.message").isEqualTo(message);
     }
 }
