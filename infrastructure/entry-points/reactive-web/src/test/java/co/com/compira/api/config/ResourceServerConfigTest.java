@@ -140,6 +140,52 @@ class ResourceServerConfigTest {
         client.post().uri(TeamHandler.TASKS, SecurityTestData.SUBJECT).exchange().expectStatus().isUnauthorized();
     }
 
+    private static final String CREATE_TASK_PATH =
+            co.com.compira.api.task.TaskRoute.API_V1 + co.com.compira.api.task.TaskRoute.TASKS_BASE;
+
+    /**
+     * HU Crear tarea - E8.
+     * Caso: un usuario activo con rol de coordinador invoca el endpoint de crear tarea.
+     * Esperado: la solicitud pasa la autorización y llega al handler.
+     * Resultado: HTTP 204 (respuesta del handler de prueba).
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E8 - Coordinador activo puede acceder al endpoint de crear tarea")
+    void allowsCoordinatorToCreateTasks() {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user(RoleCode.COORDINATOR.name(), UserStatus.ACTIVE)));
+        client.post().uri(CREATE_TASK_PATH).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isNoContent();
+    }
+
+    /**
+     * HU Crear tarea - E8.
+     * Caso: un usuario activo sin rol de coordinador (administrador o colaborador) invoca el endpoint de crear tarea.
+     * Esperado: se deniega el acceso y la tarea no se crea.
+     * Resultado: HTTP 403 (Forbidden) para cada rol.
+     */
+    @ParameterizedTest
+    @EnumSource(value = RoleCode.class, names = {"ADMINISTRATOR", "COLLABORATOR"})
+    @org.junit.jupiter.api.DisplayName("E8 - Usuario sin rol de coordinador recibe 403 al crear tarea")
+    void deniesTaskCreationForNonCoordinators(RoleCode role) {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
+        client.post().uri(CREATE_TASK_PATH).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+    }
+
+    /**
+     * HU Crear tarea - E8.
+     * Caso: una solicitud sin token intenta crear una tarea.
+     * Esperado: se rechaza por falta de autenticación.
+     * Resultado: HTTP 401 (Unauthorized).
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E8 - Solicitud sin token recibe 401 al crear tarea")
+    void deniesAnonymousTaskCreation() {
+        client.post().uri(CREATE_TASK_PATH).exchange().expectStatus().isUnauthorized();
+    }
+
     @Test
     void deniesCoordinatorTeamCreationAndCoordinatorReplacement() {
         when(users.findByCognitoSub(SecurityTestData.SUBJECT))
@@ -190,6 +236,8 @@ class ResourceServerConfigTest {
                             .flatMap(principal -> ServerResponse.ok().bodyValue(principal.getName())))
                     .POST(TeamHandler.MEMBERS, request -> ServerResponse.noContent().build())
                     .POST(TeamHandler.TASKS, request -> ServerResponse.noContent().build())
+                    .POST(co.com.compira.api.task.TaskRoute.API_V1 + co.com.compira.api.task.TaskRoute.TASKS_BASE,
+                            request -> ServerResponse.noContent().build())
                     .POST("/api/v1/auth/register", request -> ServerResponse.ok().build())
                     .DELETE("/api/v1/auth/users", request -> ServerResponse.ok().build())
                     .PUT("/api/v1/organization/settings", request -> ServerResponse.ok().build()).build();
