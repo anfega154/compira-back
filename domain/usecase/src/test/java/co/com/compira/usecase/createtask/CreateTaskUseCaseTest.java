@@ -48,69 +48,6 @@ class CreateTaskUseCaseTest {
     private final TaskClockGateway taskClockGateway = () -> TaskTestData.now();
     private final CreateTaskUseCase useCase = new CreateTaskUseCase(taskRepositoryGateway, taskUserDirectoryGateway, taskClockGateway, notifications, teams);
 
-    @Test
-    void shouldCreateTaskWhenCoordinatorAndResponsibleAreValid() {
-        when(taskUserDirectoryGateway.findByEmail(TaskTestData.COORDINATOR_EMAIL))
-                .thenReturn(Mono.just(TaskTestData.coordinator()));
-        when(taskUserDirectoryGateway.findByEmail(TaskTestData.COLLABORATOR_EMAIL))
-                .thenReturn(Mono.just(TaskTestData.collaborator()));
-        when(taskRepositoryGateway.save(any(Task.class)))
-                .thenReturn(Mono.just(TaskTestData.task(TaskStatus.PENDING)));
-        when(taskRepositoryGateway.appendHistory(any(TaskHistoryEntry.class)))
-                .thenReturn(Mono.just(mock(TaskHistoryEntry.class)));
-
-        CreateTaskCommand command = new CreateTaskCommand(
-                TaskTestData.COORDINATOR_EMAIL, "Preparar informe", "Detalle", TaskTestData.now().plusDays(2),
-                TaskTestData.COLLABORATOR_EMAIL, java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
-
-        StepVerifier.create(useCase.execute(command))
-                .assertNext(task -> {
-                    assertStatusPending(task);
-                })
-                .verifyComplete();
-    }
-
-    @Test
-    void shouldRejectWhenActorIsNotCoordinator() {
-        when(taskUserDirectoryGateway.findByEmail(TaskTestData.COLLABORATOR_EMAIL))
-                .thenReturn(Mono.just(TaskTestData.collaborator()));
-
-        CreateTaskCommand command = new CreateTaskCommand(
-                TaskTestData.COLLABORATOR_EMAIL, "Preparar informe", null, TaskTestData.now().plusDays(2), null, java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
-
-        StepVerifier.create(useCase.execute(command))
-                .expectErrorMatches(error -> error instanceof CompiraException compiraException
-                        && TaskErrorCode.ACTOR_NOT_COORDINATOR.equals(compiraException.getCode()))
-                .verify();
-    }
-
-    @Test
-    void shouldRejectWhenDueDateIsInThePast() {
-        CreateTaskCommand command = new CreateTaskCommand(
-                TaskTestData.COORDINATOR_EMAIL, "Preparar informe", null, TaskTestData.now().minusDays(1), null, java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
-
-        StepVerifier.create(useCase.execute(command))
-                .expectErrorMatches(error -> error instanceof CompiraException compiraException
-                        && TaskErrorCode.DUE_DATE_IN_PAST.equals(compiraException.getCode()))
-                .verify();
-    }
-
-    @Test
-    void shouldRejectWhenResponsibleIsNotCollaborator() {
-        when(taskUserDirectoryGateway.findByEmail(TaskTestData.COORDINATOR_EMAIL))
-                .thenReturn(Mono.just(TaskTestData.coordinator()));
-        when(taskUserDirectoryGateway.findByEmail("boss@compira.co"))
-                .thenReturn(Mono.just(TaskTestData.administrator()));
-
-        CreateTaskCommand command = new CreateTaskCommand(
-                TaskTestData.COORDINATOR_EMAIL, "Preparar informe", null, TaskTestData.now().plusDays(2), "boss@compira.co", java.util.UUID.fromString("55555555-5555-5555-5555-555555555555"));
-
-        StepVerifier.create(useCase.execute(command))
-                .expectErrorMatches(error -> error instanceof CompiraException compiraException
-                        && TaskErrorCode.RESPONSIBLE_NOT_COLLABORATOR.equals(compiraException.getCode()))
-                .verify();
-    }
-
     private static final java.util.UUID TEAM_ID = TaskTestData.TEAM_ID;
 
     private void givenCoordinatorAndPersistence() {
@@ -392,9 +329,51 @@ class CreateTaskUseCaseTest {
         verifyNoInteractions(notifications);
     }
 
+    /**
+     * HU Crear tarea - E1 (responsable en blanco).
+     * Caso: el correo del responsable llega vacío o solo con espacios (el formulario puede enviar "").
+     * Esperado: se trata como "sin responsable": no se busca al usuario, no se registra ASSIGNED ni se notifica.
+     * Resultado: tarea PENDING sin responsable, un solo evento CREATED y sin notificación.
+     */
+    @Test
+    @DisplayName("E1 - Correo de responsable en blanco se trata como sin responsable")
+    void shouldTreatBlankResponsibleEmailAsNoResponsible() {
+        givenCoordinatorAndPersistence();
+        CreateTaskCommand command = new CreateTaskCommand(TaskTestData.COORDINATOR_EMAIL, "Preparar informe",
+                "Detalle", TaskTestData.now().plusDays(2), "  ", TEAM_ID);
+
+        StepVerifier.create(useCase.execute(command))
+                .assertNext(this::assertStatusPending)
+                .verifyComplete();
+
+        ArgumentCaptor<Task> savedTask = ArgumentCaptor.forClass(Task.class);
+        verify(taskRepositoryGateway).save(savedTask.capture());
+        Assertions.assertNull(savedTask.getValue().responsibleUserId());
+        verify(taskUserDirectoryGateway, never()).findByEmail("  ");
+        verify(taskRepositoryGateway, times(1)).appendHistory(any(TaskHistoryEntry.class));
+        verifyNoInteractions(notifications);
+    }
+
+    /**
+     * Contrato de capas (E3).
+     * Caso: el comando llega sin fecha límite al caso de uso.
+     * Esperado: la obligatoriedad de la fecha se valida en la capa de entrada (CreateTaskRequest), no aquí; el caso de
+     * uso solo rechaza fechas anteriores al momento actual y no falla con una fecha nula.
+     * Resultado: el flujo completa con la tarea PENDING.
+     */
+    @Test
+    @DisplayName("Contrato - La fecha nula no se rechaza en el caso de uso (se valida en la entrada)")
+    void shouldNotRejectNullDueDateBecauseValidationLivesInTheInputLayer() {
+        givenCoordinatorAndPersistence();
+        CreateTaskCommand command = new CreateTaskCommand(TaskTestData.COORDINATOR_EMAIL, "Preparar informe",
+                "Detalle", null, null, TEAM_ID);
+
+        StepVerifier.create(useCase.execute(command))
+                .assertNext(this::assertStatusPending)
+                .verifyComplete();
+    }
+
     private void assertStatusPending(Task task) {
-        if (task.status() != TaskStatus.PENDING) {
-            throw new AssertionError("Expected PENDING status");
-        }
+        Assertions.assertEquals(TaskStatus.PENDING, task.status());
     }
 }
