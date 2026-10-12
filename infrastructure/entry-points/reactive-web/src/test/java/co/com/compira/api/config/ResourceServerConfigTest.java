@@ -140,6 +140,89 @@ class ResourceServerConfigTest {
         client.post().uri(TeamHandler.TASKS, SecurityTestData.SUBJECT).exchange().expectStatus().isUnauthorized();
     }
 
+    private static final String MEMBERS_PATH = "/api/v1/teams/" + SecurityTestData.team().id() + "/members";
+    private static final String ORGANIZATION_SETTINGS_PATH = "/api/v1/organization/settings";
+
+    /**
+     * Spec HU-12 Parte A (R1, R3).
+     * Caso: un administrador o un coordinador activo consulta `GET /teams/{id}/members`.
+     * Esperado: la solicitud pasa la autorización (la regla "solo su equipo" la aplica el caso de uso).
+     * Resultado: HTTP 200 para cada rol.
+     */
+    @ParameterizedTest
+    @EnumSource(value = RoleCode.class, names = {"ADMINISTRATOR", "COORDINATOR"})
+    @org.junit.jupiter.api.DisplayName("R1/R3 - Administrador y coordinador pueden consultar miembros del equipo")
+    void allowsTeamMembersQueryForAdministratorsAndCoordinators(RoleCode role) {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
+        client.get().uri(MEMBERS_PATH).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isOk();
+    }
+
+    /**
+     * Spec HU-12 Parte A (R5).
+     * Caso: un colaborador activo o una solicitud sin token consulta `GET /teams/{id}/members`.
+     * Esperado: se deniega el acceso.
+     * Resultado: HTTP 403 para el colaborador y 401 sin token.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("R5 - Colaborador recibe 403 y sin token 401 al consultar miembros")
+    void deniesTeamMembersQueryForCollaboratorsAndAnonymousRequests() {
+        client.get().uri(MEMBERS_PATH).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+        client.get().uri(MEMBERS_PATH).exchange().expectStatus().isUnauthorized();
+    }
+
+    /**
+     * Spec HU-12 Parte E (V5-3, regresión).
+     * Caso: un coordinador activo intenta crear un equipo con `POST /teams`.
+     * Esperado: sigue prohibido; abrir el GET de miembros no amplía los permisos del resto de `/teams`.
+     * Resultado: HTTP 403.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("Regresión - Coordinador sigue sin poder crear equipos")
+    void keepsTeamCreationForbiddenForCoordinators() {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user("COORDINATOR", UserStatus.ACTIVE)));
+        client.post().uri("/api/v1/teams").headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+    }
+
+    /**
+     * Spec HU-12 Parte E (V5-3).
+     * Caso: administrador y coordinador leen la configuración de la organización con `GET`.
+     * Esperado: ambos pueden leerla (el coordinador la necesita para la zona horaria de la fecha límite).
+     * Resultado: HTTP 200 para cada rol.
+     */
+    @ParameterizedTest
+    @EnumSource(value = RoleCode.class, names = {"ADMINISTRATOR", "COORDINATOR"})
+    @org.junit.jupiter.api.DisplayName("V5-3 - Administrador y coordinador pueden leer la configuración de la organización")
+    void allowsOrganizationSettingsReadForAdministratorsAndCoordinators(RoleCode role) {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
+        client.get().uri(ORGANIZATION_SETTINGS_PATH).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isOk();
+    }
+
+    /**
+     * Spec HU-12 Parte E (V5-3).
+     * Caso: un colaborador lee, o un coordinador modifica, la configuración de la organización.
+     * Esperado: el colaborador no puede leerla y modificarla sigue siendo solo del administrador.
+     * Resultado: HTTP 403 en ambos casos y 401 para el GET sin token.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("V5-3 - Colaborador no lee y coordinador no modifica la configuración")
+    void deniesOrganizationSettingsReadForCollaboratorsAndWriteForCoordinators() {
+        client.get().uri(ORGANIZATION_SETTINGS_PATH).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+        client.get().uri(ORGANIZATION_SETTINGS_PATH).exchange().expectStatus().isUnauthorized();
+
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user("COORDINATOR", UserStatus.ACTIVE)));
+        client.put().uri(ORGANIZATION_SETTINGS_PATH).headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+    }
+
     private static final String CREATE_TASK_PATH =
             co.com.compira.api.task.TaskRoute.API_V1 + co.com.compira.api.task.TaskRoute.TASKS_BASE;
 
@@ -235,6 +318,8 @@ class ResourceServerConfigTest {
             return RouterFunctions.route().GET("/api/v1/notifications", request -> request.principal()
                             .flatMap(principal -> ServerResponse.ok().bodyValue(principal.getName())))
                     .POST(TeamHandler.MEMBERS, request -> ServerResponse.noContent().build())
+                    .GET(TeamHandler.MEMBERS, request -> ServerResponse.ok().build())
+                    .GET("/api/v1/organization/settings", request -> ServerResponse.ok().build())
                     .POST(TeamHandler.TASKS, request -> ServerResponse.noContent().build())
                     .POST(co.com.compira.api.task.TaskRoute.API_V1 + co.com.compira.api.task.TaskRoute.TASKS_BASE,
                             request -> ServerResponse.noContent().build())
