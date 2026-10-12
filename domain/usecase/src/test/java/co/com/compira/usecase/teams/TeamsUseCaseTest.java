@@ -142,6 +142,68 @@ class TeamsUseCaseTest {
         verify(teams, never()).findAll();
     }
 
+    /**
+     * HU Crear tarea - E6.
+     * Caso: un coordinador al que el Administrador no ha asignado ningún equipo consulta su lista de equipos.
+     * Esperado: la lista llega vacía (el frontend muestra "Necesitas un equipo asignado por el Administrador para crear tareas.").
+     * Resultado: el flujo completa sin elementos y no se consultan todos los equipos (solo los del coordinador).
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E6 - Coordinador sin equipos asignados obtiene una lista vacía")
+    void listsNoTeamsWhenCoordinatorHasNoneAssigned() {
+        when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
+        when(teams.findByCoordinator(TaskTestData.COORDINATOR_ID)).thenReturn(Flux.empty());
+        StepVerifier.create(useCase.list(TaskTestData.COORDINATOR_EMAIL)).verifyComplete();
+        verify(teams, never()).findAll();
+    }
+
+    /**
+     * HU Crear tarea - E6.
+     * Caso: un coordinador intenta crear una tarea en un equipo cuyo coordinador es otro usuario.
+     * Esperado: se rechaza con "No tienes acceso a este equipo".
+     * Resultado: error FORBIDDEN.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E6 - Coordinador de otro equipo no puede crear tareas en un equipo ajeno")
+    void rejectsCoordinatorWhoDoesNotCoordinateTheTeam() {
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        StepVerifier.create(useCase.requireCoordinator(TaskTestData.TEAM_ID, TaskTestData.OTHER_COLLABORATOR_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.FORBIDDEN
+                        && "No tienes acceso a este equipo".equals(failure.getMessage()))
+                .verify();
+    }
+
+    /**
+     * HU Crear tarea - E5 (otro equipo).
+     * Caso: se valida como responsable a un colaborador que pertenece a un equipo distinto al de la tarea.
+     * Esperado: se rechaza con "El responsable debe pertenecer al equipo de la tarea".
+     * Resultado: error CONFLICT.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E5 - Responsable de otro equipo es rechazado con conflicto")
+    void rejectsResponsibleFromAnotherTeamWithConflict() {
+        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.otherTeam()));
+        StepVerifier.create(useCase.requireMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.CONFLICT
+                        && "El responsable debe pertenecer al equipo de la tarea".equals(failure.getMessage()))
+                .verify();
+    }
+
+    /**
+     * HU Crear tarea - E1.
+     * Caso: se crea una tarea sin responsable (responsable nulo).
+     * Esperado: no se exige pertenencia a ningún equipo.
+     * Resultado: el flujo completa sin consultar el equipo del miembro.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E1 - Sin responsable no se valida pertenencia al equipo")
+    void skipsMembershipValidationWhenTaskHasNoResponsible() {
+        StepVerifier.create(useCase.requireMember(TaskTestData.TEAM_ID, null)).verifyComplete();
+        verifyNoInteractions(teams);
+    }
+
     @Test
     void stillForbidsCoordinatorFromCreatingTeamsOrChangingCoordinator() {
         when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
