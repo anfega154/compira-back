@@ -18,6 +18,7 @@ import reactor.test.StepVerifier;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 /**
  * Spec HU-12 Parte A (T2): consulta de colaboradores activos de un equipo contra PostgreSQL real.
@@ -27,12 +28,10 @@ class TeamMembersPersistenceTest {
     private static final UUID TEAM_A = UUID.fromString("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
     private static final UUID TEAM_B = UUID.fromString("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb");
     private static final UUID EMPTY_TEAM = UUID.fromString("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
-    private static final UUID COORDINATOR = UUID.fromString("10000000-0000-4000-8000-000000000001");
     private static final UUID ANA_ZETA = UUID.fromString("10000000-0000-4000-8000-000000000002");
     private static final UUID ANA_ALFA = UUID.fromString("10000000-0000-4000-8000-000000000003");
     private static final UUID NO_NAME = UUID.fromString("10000000-0000-4000-8000-000000000004");
-    private static final UUID DISABLED = UUID.fromString("10000000-0000-4000-8000-000000000005");
-    private static final UUID NOT_COLLABORATOR = UUID.fromString("10000000-0000-4000-8000-000000000006");
+    private static final UUID ANA_ALFA_SAME_NAME = UUID.fromString("10000000-0000-4000-8000-000000000008");
     private static final UUID OTHER_TEAM = UUID.fromString("10000000-0000-4000-8000-000000000007");
     private static final String FIXTURES = """
             INSERT INTO users (id, cognito_sub, email, first_name, last_name, phone_number, preferred_mfa_channel, status) VALUES
@@ -42,7 +41,9 @@ class TeamMembersPersistenceTest {
               ('10000000-0000-4000-8000-000000000004', 'no-name', 'sin.nombre@compira.co', NULL, NULL, '+573001110004', 'EMAIL', 'ACTIVE'),
               ('10000000-0000-4000-8000-000000000005', 'disabled', 'inactivo@compira.co', 'Beto', 'Inactivo', '+573001110005', 'EMAIL', 'DISABLED'),
               ('10000000-0000-4000-8000-000000000006', 'not-collab', 'no.colab@compira.co', 'Carla', 'Coordinadora', '+573001110006', 'EMAIL', 'ACTIVE'),
-              ('10000000-0000-4000-8000-000000000007', 'other-team', 'otro.equipo@compira.co', 'Dario', 'Otro', '+573001110007', 'EMAIL', 'ACTIVE');
+              ('10000000-0000-4000-8000-000000000007', 'other-team', 'otro.equipo@compira.co', 'Dario', 'Otro', '+573001110007', 'EMAIL', 'ACTIVE'),
+              ('10000000-0000-4000-8000-000000000008', 'ana-alfa-2', 'aaa.alfa@compira.co', 'Ana', 'Alfa', '+573001110008', 'EMAIL', 'ACTIVE'),
+              ('10000000-0000-4000-8000-000000000009', 'pending', 'pendiente@compira.co', 'Eva', 'Pendiente', '+573001110009', 'EMAIL', 'PENDING_CONFIRMATION');
             INSERT INTO user_roles (user_id, role_id)
               SELECT u.id, r.id FROM users u JOIN roles r ON r.code = 'COORDINATOR' WHERE u.id IN
                 ('10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000006');
@@ -50,7 +51,8 @@ class TeamMembersPersistenceTest {
               SELECT u.id, r.id FROM users u JOIN roles r ON r.code = 'COLLABORATOR' WHERE u.id IN
                 ('10000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000003',
                  '10000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000005',
-                 '10000000-0000-4000-8000-000000000007');
+                 '10000000-0000-4000-8000-000000000007', '10000000-0000-4000-8000-000000000008',
+                 '10000000-0000-4000-8000-000000000009');
             INSERT INTO teams (id, name, coordinator_user_id) VALUES
               ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'Equipo A', '10000000-0000-4000-8000-000000000001'),
               ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'Equipo B', '10000000-0000-4000-8000-000000000001'),
@@ -61,6 +63,8 @@ class TeamMembersPersistenceTest {
               ('10000000-0000-4000-8000-000000000004', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
               ('10000000-0000-4000-8000-000000000005', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
               ('10000000-0000-4000-8000-000000000006', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+              ('10000000-0000-4000-8000-000000000008', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+              ('10000000-0000-4000-8000-000000000009', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
               ('10000000-0000-4000-8000-000000000007', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
             """;
 
@@ -93,17 +97,38 @@ class TeamMembersPersistenceTest {
     }
 
     /**
-     * Caso: equipo con colaboradores activos, un colaborador inactivo, un usuario sin rol de colaborador,
-     * un colaborador de otro equipo y un colaborador sin nombre.
-     * Esperado: solo se devuelven los colaboradores activos del equipo consultado, ordenados por nombre,
-     * apellido y correo (los nombres nulos al final).
-     * Resultado: Ana Alfa, Ana Zeta y el colaborador sin nombre, en ese orden.
+     * Caso: equipo con colaboradores activos, un colaborador inactivo (DISABLED), uno pendiente de confirmación,
+     * un usuario sin rol de colaborador, un colaborador de otro equipo, un colaborador sin nombre y dos colaboradores
+     * con el mismo nombre y apellido.
+     * Esperado: solo se devuelven los colaboradores ACTIVE del equipo consultado, ordenados por nombre, apellido y
+     * correo (desempate por correo; los nombres nulos al final), con los cuatro campos del contrato mapeados.
+     * Resultado: aaa.alfa, ana.alfa, ana.zeta y el colaborador sin nombre (nombres nulos conservados), en ese orden.
      */
     @Test
-    @DisplayName("Devuelve solo colaboradores activos del equipo, ordenados por nombre, apellido y correo")
+    @DisplayName("Devuelve solo colaboradores ACTIVE del equipo, ordenados por nombre, apellido y correo, con sus campos")
     void returnsOnlyActiveCollaboratorsOfTheTeamInOrder() {
-        StepVerifier.create(teams.findActiveCollaborators(TEAM_A).map(TeamMember::id).collectList())
-                .assertNext(ids -> assertEquals(java.util.List.of(ANA_ALFA, ANA_ZETA, NO_NAME), ids))
+        StepVerifier.create(teams.findActiveCollaborators(TEAM_A).collectList())
+                .assertNext(members -> assertEquals(java.util.List.of(
+                        new TeamMember(ANA_ALFA_SAME_NAME, "aaa.alfa@compira.co", "Ana", "Alfa"),
+                        new TeamMember(ANA_ALFA, "ana.alfa@compira.co", "Ana", "Alfa"),
+                        new TeamMember(ANA_ZETA, "ana.zeta@compira.co", "Ana", "Zeta"),
+                        new TeamMember(NO_NAME, "sin.nombre@compira.co", null, null)), members))
+                .verifyComplete();
+    }
+
+    /**
+     * Caso: el equipo A tiene un colaborador pendiente de confirmación (PENDING_CONFIRMATION) y uno DISABLED.
+     * Esperado: cualquier estado distinto de ACTIVE se excluye, no solo DISABLED.
+     * Resultado: ninguno de los dos aparece en la lista.
+     */
+    @Test
+    @DisplayName("Excluye colaboradores con estado distinto de ACTIVE (DISABLED y PENDING_CONFIRMATION)")
+    void excludesCollaboratorsWhoseStatusIsNotActive() {
+        StepVerifier.create(teams.findActiveCollaborators(TEAM_A).map(TeamMember::email).collectList())
+                .assertNext(emails -> {
+                    assertFalse(emails.contains("inactivo@compira.co"));
+                    assertFalse(emails.contains("pendiente@compira.co"));
+                })
                 .verifyComplete();
     }
 
@@ -121,41 +146,15 @@ class TeamMembersPersistenceTest {
     }
 
     /**
-     * Caso: equipo sin miembros.
-     * Esperado: flujo vacío.
-     * Resultado: sin elementos.
-     */
-    @Test
-    @DisplayName("Equipo sin miembros devuelve vacío")
-    void returnsNothingForTeamWithoutMembers() {
-        StepVerifier.create(teams.findActiveCollaborators(EMPTY_TEAM)).verifyComplete();
-    }
-
-    /**
-     * Caso: equipo inexistente.
+     * Caso: equipo sin miembros o equipo inexistente.
      * Esperado: flujo vacío (la validación de existencia es del caso de uso).
-     * Resultado: sin elementos.
+     * Resultado: sin elementos en ambos casos.
      */
     @Test
-    @DisplayName("Equipo inexistente devuelve vacío")
-    void returnsNothingForUnknownTeam() {
+    @DisplayName("Equipo sin miembros o inexistente devuelve vacío")
+    void returnsNothingForTeamWithoutMembersOrUnknownTeam() {
+        StepVerifier.create(teams.findActiveCollaborators(EMPTY_TEAM)).verifyComplete();
         StepVerifier.create(teams.findActiveCollaborators(UUID.fromString("dddddddd-dddd-4ddd-8ddd-dddddddddddd")))
-                .verifyComplete();
-    }
-
-    /**
-     * Caso: se mapea una fila con los cuatro campos del contrato.
-     * Esperado: el mapeo conserva `id`, `email`, `firstName` y `lastName`, incluidos los nulos.
-     * Resultado: el primer elemento trae los datos de Ana Alfa y el último conserva nombres nulos.
-     */
-    @Test
-    @DisplayName("Mapea id, email, firstName y lastName (incluye nulos)")
-    void mapsRowFieldsIncludingNulls() {
-        StepVerifier.create(teams.findActiveCollaborators(TEAM_A).collectList())
-                .assertNext(members -> {
-                    assertEquals(new TeamMember(ANA_ALFA, "ana.alfa@compira.co", "Ana", "Alfa"), members.get(0));
-                    assertEquals(new TeamMember(NO_NAME, "sin.nombre@compira.co", null, null), members.get(2));
-                })
                 .verifyComplete();
     }
 }
