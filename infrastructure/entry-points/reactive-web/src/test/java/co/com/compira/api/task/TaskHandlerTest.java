@@ -117,6 +117,235 @@ class TaskHandlerTest {
                 .expectStatus().isBadRequest();
     }
 
+    private static final String TEAM_ID = "55555555-5555-5555-5555-555555555555";
+
+    private WebTestClient.ResponseSpec postCreate(Map<String, Object> body) {
+        return webTestClient.post()
+                .uri(BASE)
+                .header(TaskRoute.ACTOR_EMAIL_HEADER, TaskApiTestData.ACTOR_EMAIL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(body)
+                .exchange();
+    }
+
+    /**
+     * HU Crear tarea - E2.
+     * Caso: solicitud completa (equipo, título, descripción, fecha límite y correo del responsable).
+     * Esperado: los datos llegan intactos al caso de uso y se responde 201 con la tarea en estado PENDING.
+     * Resultado: HTTP 201, estado "PENDING" y comando con título, descripción, responsable y equipo de la solicitud.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E2 - Solicitud completa: 201, tarea Pendiente y datos mapeados al comando")
+    void shouldMapFullRequestToCommandAndRespondCreated() {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.just(TaskApiTestData.task(TaskStatus.PENDING)));
+
+        postCreate(Map.of("title", "Preparar informe", "description", "Detalle",
+                "dueDate", "2030-01-01T10:00:00Z", "responsibleEmail", "colab@compira.co", "teamId", TEAM_ID))
+                .expectStatus().isCreated()
+                .expectBody().jsonPath("$.status").isEqualTo("PENDING");
+
+        org.mockito.ArgumentCaptor<co.com.compira.model.task.CreateTaskCommand> command =
+                org.mockito.ArgumentCaptor.forClass(co.com.compira.model.task.CreateTaskCommand.class);
+        org.mockito.Mockito.verify(createTaskUseCase).execute(command.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(TaskApiTestData.ACTOR_EMAIL, command.getValue().actorEmail());
+        org.junit.jupiter.api.Assertions.assertEquals("Preparar informe", command.getValue().title());
+        org.junit.jupiter.api.Assertions.assertEquals("Detalle", command.getValue().description());
+        org.junit.jupiter.api.Assertions.assertEquals("colab@compira.co", command.getValue().responsibleEmail());
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.UUID.fromString(TEAM_ID), command.getValue().teamId());
+    }
+
+    /**
+     * HU Crear tarea - E3 (límite del título).
+     * Caso: título de exactamente 150 caracteres.
+     * Esperado: se acepta y la tarea se crea.
+     * Resultado: HTTP 201.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E3 - Título de 150 caracteres es aceptado")
+    void shouldAcceptTitleWithMaximumLength() {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.just(TaskApiTestData.task(TaskStatus.PENDING)));
+
+        postCreate(Map.of("title", "a".repeat(150), "teamId", TEAM_ID)).expectStatus().isCreated();
+    }
+
+    /**
+     * HU Crear tarea - E3 (título demasiado largo).
+     * Caso: título de 151 caracteres.
+     * Esperado: se rechaza con "El título puede tener máximo 150 caracteres" y la tarea no se crea.
+     * Resultado: HTTP 400 y el caso de uso nunca se invoca.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E3 - Título de 151 caracteres: 400 y no se crea la tarea")
+    void shouldRejectTitleLongerThanMaximumLength() {
+        postCreate(Map.of("title", "a".repeat(151), "teamId", TEAM_ID))
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.TITLE_LENGTH);
+
+        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+    }
+
+    /**
+     * HU Crear tarea - E3 (título vacío).
+     * Caso: título compuesto solo por espacios.
+     * Esperado: se rechaza con "El título de la tarea es obligatorio" y la tarea no se crea.
+     * Resultado: HTTP 400 y el caso de uso nunca se invoca.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E3 - Título en blanco: 400 y no se crea la tarea")
+    void shouldRejectBlankTitle() {
+        postCreate(Map.of("title", "   ", "teamId", TEAM_ID))
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.TITLE_REQUIRED);
+
+        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+    }
+
+    /**
+     * HU Crear tarea - E3 (equipo obligatorio).
+     * Caso: solicitud sin equipo.
+     * Esperado: se rechaza con "El equipo es obligatorio" y la tarea no se crea.
+     * Resultado: HTTP 400 y el caso de uso nunca se invoca.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E3 - Sin equipo: 400 y no se crea la tarea")
+    void shouldRejectCreateWithoutTeam() {
+        postCreate(Map.of("title", "Preparar informe"))
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.TEAM_REQUIRED);
+
+        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+    }
+
+    /**
+     * HU Crear tarea - E3 (descripción demasiado larga).
+     * Caso: descripción de 2001 caracteres (supera el máximo vigente de 2000 caracteres).
+     * Esperado: se rechaza con "La descripción puede tener máximo 2000 caracteres" y la tarea no se crea.
+     * Resultado: HTTP 400 y el caso de uso nunca se invoca.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E3 - Descripción sobre el máximo vigente (2000): 400 y no se crea la tarea")
+    void shouldRejectDescriptionLongerThanMaximumLength() {
+        postCreate(Map.of("title", "Preparar informe", "description", "a".repeat(2001), "teamId", TEAM_ID))
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.DESCRIPTION_LENGTH);
+
+        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+    }
+
+    /**
+     * HU Crear tarea - E2/E5 (formato del correo del responsable).
+     * Caso: correo del responsable con formato inválido.
+     * Esperado: se rechaza con "El correo del responsable no tiene un formato válido" y la tarea no se crea.
+     * Resultado: HTTP 400 y el caso de uso nunca se invoca.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E5 - Correo de responsable con formato inválido: 400 y no se crea la tarea")
+    void shouldRejectInvalidResponsibleEmailFormat() {
+        postCreate(Map.of("title", "Preparar informe", "responsibleEmail", "no-es-un-correo", "teamId", TEAM_ID))
+                .expectStatus().isBadRequest()
+                .expectBody().jsonPath("$.message").isEqualTo(TaskValidationMessage.RESPONSIBLE_EMAIL_INVALID);
+
+        org.mockito.Mockito.verifyNoInteractions(createTaskUseCase);
+    }
+
+    /**
+     * HU Crear tarea - E4.
+     * Caso: el caso de uso rechaza la fecha límite por ser anterior al momento actual.
+     * Esperado: la API responde el mensaje "La fecha límite no puede ser anterior al momento actual".
+     * Resultado: HTTP 400 con código TASK_011 y el mensaje esperado.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E4 - Fecha límite pasada: 400 con el mensaje esperado")
+    void shouldRespondBadRequestWhenDueDateIsInThePast() {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
+                co.com.compira.model.task.TaskErrorCode.DUE_DATE_IN_PAST, co.com.compira.model.task.TaskMessage.DUE_DATE_IN_PAST,
+                co.com.compira.model.common.error.ErrorCategory.BAD_REQUEST)));
+
+        postCreate(Map.of("title", "Preparar informe", "dueDate", "2020-01-01T10:00:00Z", "teamId", TEAM_ID))
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("TASK_011")
+                .jsonPath("$.message").isEqualTo("La fecha límite no puede ser anterior al momento actual");
+    }
+
+    /**
+     * HU Crear tarea - E5.
+     * Caso: el caso de uso rechaza al responsable (no existe o está inactivo).
+     * Esperado: la API responde "No se encontró el colaborador responsable indicado".
+     * Resultado: HTTP 404 con código TASK_004 y el mensaje esperado.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E5 - Responsable no encontrado: 404 con el mensaje esperado")
+    void shouldRespondNotFoundWhenResponsibleDoesNotExist() {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
+                co.com.compira.model.task.TaskErrorCode.RESPONSIBLE_NOT_FOUND, co.com.compira.model.task.TaskMessage.RESPONSIBLE_NOT_FOUND,
+                co.com.compira.model.common.error.ErrorCategory.NOT_FOUND)));
+
+        postCreate(Map.of("title", "Preparar informe", "responsibleEmail", "nadie@compira.co", "teamId", TEAM_ID))
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("TASK_004")
+                .jsonPath("$.message").isEqualTo("No se encontró el colaborador responsable indicado");
+    }
+
+    /**
+     * HU Crear tarea - E5.
+     * Caso: el caso de uso rechaza al responsable por no tener rol de colaborador.
+     * Esperado: la API responde "El responsable de una tarea debe ser un colaborador".
+     * Resultado: HTTP 400 con código TASK_005 y el mensaje esperado.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E5 - Responsable sin rol de colaborador: 400 con el mensaje esperado")
+    void shouldRespondBadRequestWhenResponsibleIsNotCollaborator() {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
+                co.com.compira.model.task.TaskErrorCode.RESPONSIBLE_NOT_COLLABORATOR, co.com.compira.model.task.TaskMessage.RESPONSIBLE_NOT_COLLABORATOR,
+                co.com.compira.model.common.error.ErrorCategory.BAD_REQUEST)));
+
+        postCreate(Map.of("title", "Preparar informe", "responsibleEmail", "jefe@compira.co", "teamId", TEAM_ID))
+                .expectStatus().isBadRequest()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("TASK_005")
+                .jsonPath("$.message").isEqualTo("El responsable de una tarea debe ser un colaborador");
+    }
+
+    /**
+     * HU Crear tarea - E5.
+     * Caso: el caso de uso rechaza al responsable por pertenecer a otro equipo.
+     * Esperado: la API responde "El responsable debe pertenecer al equipo de la tarea".
+     * Resultado: HTTP 409 con el mensaje esperado.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E5 - Responsable de otro equipo: 409 con el mensaje esperado")
+    void shouldRespondConflictWhenResponsibleBelongsToAnotherTeam() {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
+                "TEAM_001", "El responsable debe pertenecer al equipo de la tarea",
+                co.com.compira.model.common.error.ErrorCategory.CONFLICT)));
+
+        postCreate(Map.of("title", "Preparar informe", "responsibleEmail", "otro@compira.co", "teamId", TEAM_ID))
+                .expectStatus().isEqualTo(409)
+                .expectBody().jsonPath("$.message").isEqualTo("El responsable debe pertenecer al equipo de la tarea");
+    }
+
+    /**
+     * HU Crear tarea - E6/E8.
+     * Caso: el caso de uso rechaza al usuario por no ser coordinador o no coordinar el equipo indicado.
+     * Esperado: la API responde acceso prohibido y no crea la tarea.
+     * Resultado: HTTP 403 con código TASK_007 y el mensaje "Esta operación solo puede realizarla un coordinador".
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("E8 - Usuario sin rol de coordinador: 403 con el mensaje esperado")
+    void shouldRespondForbiddenWhenActorIsNotCoordinator() {
+        when(createTaskUseCase.execute(any())).thenReturn(Mono.error(new co.com.compira.model.common.error.CompiraException(
+                co.com.compira.model.task.TaskErrorCode.ACTOR_NOT_COORDINATOR, co.com.compira.model.task.TaskMessage.ACTOR_NOT_COORDINATOR,
+                co.com.compira.model.common.error.ErrorCategory.FORBIDDEN)));
+
+        postCreate(Map.of("title", "Preparar informe", "teamId", TEAM_ID))
+                .expectStatus().isForbidden()
+                .expectBody()
+                .jsonPath("$.code").isEqualTo("TASK_007")
+                .jsonPath("$.message").isEqualTo("Esta operación solo puede realizarla un coordinador");
+    }
+
     @Test
     void shouldListManagedTasks() {
         when(listManagedTasksUseCase.execute(TaskApiTestData.ACTOR_EMAIL))
