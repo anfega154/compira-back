@@ -174,17 +174,26 @@ class ResourceServerConfigTest {
     }
 
     /**
-     * Spec HU-12 Parte E (V5-3, regresión).
-     * Caso: un coordinador activo intenta crear un equipo con `POST /teams`.
-     * Esperado: sigue prohibido; abrir el GET de miembros no amplía los permisos del resto de `/teams`.
-     * Resultado: HTTP 403.
+     * Regresión de seguridad de /teams/**.
+     * Caso: un coordinador activo invoca rutas de equipos distintas de `GET /teams/{id}/members`:
+     * reasignar miembros (POST y GET sobre `/members/reassign`) y una ruta con un segmento adicional bajo `/members`.
+     * Esperado: la apertura de `GET /teams/{id}/members` no amplía los permisos del resto de `/teams/**`
+     * (la creación de equipos y el cambio de coordinador ya están cubiertos por
+     * `deniesCoordinatorTeamCreationAndCoordinatorReplacement`).
+     * Resultado: HTTP 403 en cada ruta.
      */
-    @Test
-    @org.junit.jupiter.api.DisplayName("Regresión - Coordinador sigue sin poder crear equipos")
-    void keepsTeamCreationForbiddenForCoordinators() {
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({
+            "POST,/members/reassign",
+            "GET,/members/reassign",
+            "GET,/members/otro-segmento"})
+    @org.junit.jupiter.api.DisplayName("Regresión - Coordinador no accede a otras rutas de /teams/** al abrir GET members")
+    void keepsOtherTeamRoutesForbiddenForCoordinators(String method, String suffix) {
         when(users.findByCognitoSub(SecurityTestData.SUBJECT))
                 .thenReturn(Mono.just(SecurityTestData.user("COORDINATOR", UserStatus.ACTIVE)));
-        client.post().uri("/api/v1/teams").headers(headers -> headers.setBearerAuth("valid-token"))
+        client.method(org.springframework.http.HttpMethod.valueOf(method))
+                .uri("/api/v1/teams/" + SecurityTestData.team().id() + suffix)
+                .headers(headers -> headers.setBearerAuth("valid-token"))
                 .exchange().expectStatus().isForbidden();
     }
 
