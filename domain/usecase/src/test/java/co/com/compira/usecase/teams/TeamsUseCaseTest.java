@@ -204,6 +204,130 @@ class TeamsUseCaseTest {
         verifyNoInteractions(teams);
     }
 
+    private static final co.com.compira.model.team.TeamMember MEMBER_ONE = new co.com.compira.model.team.TeamMember(
+            TaskTestData.COLLABORATOR_ID, TaskTestData.COLLABORATOR_EMAIL, "Colab", "Uno");
+    private static final co.com.compira.model.team.TeamMember MEMBER_TWO = new co.com.compira.model.team.TeamMember(
+            TaskTestData.OTHER_COLLABORATOR_ID, TaskTestData.OTHER_COLLABORATOR_EMAIL, null, null);
+
+    /**
+     * Spec HU-12 Parte A (R1).
+     * Caso: el coordinador del equipo consulta los miembros de su equipo.
+     * Esperado: recibe los colaboradores activos que entrega el repositorio, en el mismo orden.
+     * Resultado: el flujo emite MEMBER_ONE y MEMBER_TWO (este último con nombre y apellido nulos).
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("R1 - Coordinador del equipo obtiene los colaboradores activos de su equipo")
+    void listsActiveCollaboratorsForTheCoordinatorOfTheTeam() {
+        when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        when(teams.findActiveCollaborators(TaskTestData.TEAM_ID)).thenReturn(Flux.just(MEMBER_ONE, MEMBER_TWO));
+
+        StepVerifier.create(useCase.listMembers(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID))
+                .expectNext(MEMBER_ONE, MEMBER_TWO)
+                .verifyComplete();
+    }
+
+    /**
+     * Spec HU-12 Parte A (R1).
+     * Caso: el equipo no tiene colaboradores activos.
+     * Esperado: el flujo completa vacío (el front muestra "Este equipo aún no tiene colaboradores").
+     * Resultado: sin elementos y sin error.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("R1 - Equipo sin colaboradores activos devuelve un flujo vacío")
+    void listsNoMembersWhenTeamHasNoActiveCollaborators() {
+        when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        when(teams.findActiveCollaborators(TaskTestData.TEAM_ID)).thenReturn(Flux.empty());
+
+        StepVerifier.create(useCase.listMembers(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID))
+                .verifyComplete();
+    }
+
+    /**
+     * Spec HU-12 Parte A (R2).
+     * Caso: un coordinador consulta los miembros de un equipo que coordina otro usuario.
+     * Esperado: se rechaza con "No tienes acceso a este equipo" y no se consultan los miembros.
+     * Resultado: error FORBIDDEN y `findActiveCollaborators` nunca se invoca.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("R2 - Coordinador de otro equipo: acceso prohibido y no consulta miembros")
+    void rejectsMembersQueryFromCoordinatorOfAnotherTeam() {
+        var otherCoordinator = new co.com.compira.model.task.TaskUser(TaskTestData.OTHER_COLLABORATOR_ID,
+                "otro.coord@compira.co", "Otro", "Coord", java.util.List.of(RoleCode.COORDINATOR.name()));
+        when(users.findByEmail("otro.coord@compira.co")).thenReturn(Mono.just(otherCoordinator));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+
+        StepVerifier.create(useCase.listMembers("otro.coord@compira.co", TaskTestData.TEAM_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.FORBIDDEN
+                        && "No tienes acceso a este equipo".equals(failure.getMessage()))
+                .verify();
+
+        verify(teams, never()).findActiveCollaborators(any());
+    }
+
+    /**
+     * Spec HU-12 Parte A (R3).
+     * Caso: un administrador consulta los miembros de un equipo que no coordina.
+     * Esperado: se permite y recibe los miembros.
+     * Resultado: el flujo emite MEMBER_ONE.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("R3 - Administrador obtiene los miembros de cualquier equipo")
+    void listsMembersForAdministratorOfAnyTeam() {
+        var admin = new co.com.compira.model.task.TaskUser(TaskTestData.OTHER_COLLABORATOR_ID,
+                "admin@compira.co", "Admin", "Uno", java.util.List.of(RoleCode.ADMINISTRATOR.name()));
+        when(users.findByEmail("admin@compira.co")).thenReturn(Mono.just(admin));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        when(teams.findActiveCollaborators(TaskTestData.TEAM_ID)).thenReturn(Flux.just(MEMBER_ONE));
+
+        StepVerifier.create(useCase.listMembers("admin@compira.co", TaskTestData.TEAM_ID))
+                .expectNext(MEMBER_ONE)
+                .verifyComplete();
+    }
+
+    /**
+     * Spec HU-12 Parte A (R4).
+     * Caso: se consultan los miembros de un equipo que no existe.
+     * Esperado: se responde "Equipo no encontrado" y no se consultan los miembros.
+     * Resultado: error NOT_FOUND y `findActiveCollaborators` nunca se invoca.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("R4 - Equipo inexistente: Equipo no encontrado")
+    void rejectsMembersQueryWhenTeamDoesNotExist() {
+        when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.empty());
+
+        StepVerifier.create(useCase.listMembers(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.NOT_FOUND
+                        && "Equipo no encontrado".equals(failure.getMessage()))
+                .verify();
+
+        verify(teams, never()).findActiveCollaborators(any());
+    }
+
+    /**
+     * Spec HU-12 Parte A (R5).
+     * Caso: un colaborador intenta consultar los miembros de un equipo.
+     * Esperado: se rechaza con acceso prohibido.
+     * Resultado: error FORBIDDEN y no se consultan los miembros.
+     */
+    @Test
+    @org.junit.jupiter.api.DisplayName("R5 - Colaborador no puede consultar miembros del equipo")
+    void rejectsMembersQueryFromCollaborator() {
+        when(users.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+
+        StepVerifier.create(useCase.listMembers(TaskTestData.COLLABORATOR_EMAIL, TaskTestData.TEAM_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.FORBIDDEN)
+                .verify();
+
+        verify(teams, never()).findActiveCollaborators(any());
+    }
+
     @Test
     void stillForbidsCoordinatorFromCreatingTeamsOrChangingCoordinator() {
         when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));

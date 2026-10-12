@@ -8,6 +8,7 @@ import co.com.compira.model.task.TaskUser;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
 import co.com.compira.model.team.Team;
+import co.com.compira.model.team.TeamMember;
 import co.com.compira.model.team.gateways.TeamRepositoryGateway;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -34,6 +35,10 @@ public class TeamsUseCase {
     public Flux<Team> list(String email) {
         return authorization.requireActor(email).flatMapMany(user -> user.hasRole(RoleCode.ADMINISTRATOR.name())
                 ? teams.findAll() : teams.findByCoordinator(user.id()));
+    }
+
+    public Flux<TeamMember> listMembers(String email, UUID teamId) {
+        return requireTeamLinkingAccess(email, teamId).flatMapMany(team -> teams.findActiveCollaborators(team.id()));
     }
 
     public Mono<Team> create(String email, String name, String coordinatorEmail) {
