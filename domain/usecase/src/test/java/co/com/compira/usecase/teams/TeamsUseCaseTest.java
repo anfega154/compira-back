@@ -1,6 +1,9 @@
 package co.com.compira.usecase.teams;
 
 import co.com.compira.model.common.error.CompiraException;
+import co.com.compira.model.task.TaskUser;
+import co.com.compira.model.team.TeamMember;
+import org.junit.jupiter.api.DisplayName;
 import co.com.compira.model.task.TaskStatus;
 import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.common.error.ErrorCategory;
@@ -27,7 +30,7 @@ class TeamsUseCaseTest {
     @Test
     void rejectsResponsibleAfterCollaboratorRoleIsRemoved() {
         var previous = TaskTestData.collaborator();
-        var actor = new co.com.compira.model.task.TaskUser(previous.id(), previous.email(), previous.firstName(), previous.lastName(), java.util.List.of());
+        var actor = new TaskUser(previous.id(), previous.email(), previous.firstName(), previous.lastName(), java.util.List.of());
         when(users.findByEmail(actor.email())).thenReturn(Mono.just(actor));
         when(tasks.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.PENDING)));
         StepVerifier.create(useCase.requireTaskAccess(actor.email(), TaskTestData.TASK_ID))
@@ -140,6 +143,217 @@ class TeamsUseCaseTest {
         when(teams.findByCoordinator(TaskTestData.COORDINATOR_ID)).thenReturn(Flux.just(TaskTestData.team()));
         StepVerifier.create(useCase.list(TaskTestData.COORDINATOR_EMAIL)).expectNext(TaskTestData.team()).verifyComplete();
         verify(teams, never()).findAll();
+    }
+
+    /**
+     * HU Crear tarea - E6.
+     * Caso: un coordinador al que el Administrador no ha asignado ningún equipo consulta su lista de equipos.
+     * Esperado: la lista llega vacía (el frontend muestra "Necesitas un equipo asignado por el Administrador para crear tareas.").
+     * Resultado: el flujo completa sin elementos y no se consultan todos los equipos (solo los del coordinador).
+     */
+    @Test
+    @DisplayName("E6 - Coordinador sin equipos asignados obtiene una lista vacía")
+    void listsNoTeamsWhenCoordinatorHasNoneAssigned() {
+        when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
+        when(teams.findByCoordinator(TaskTestData.COORDINATOR_ID)).thenReturn(Flux.empty());
+        StepVerifier.create(useCase.list(TaskTestData.COORDINATOR_EMAIL)).verifyComplete();
+        verify(teams, never()).findAll();
+    }
+
+    /**
+     * HU Crear tarea - E6.
+     * Caso: un coordinador intenta crear una tarea en un equipo cuyo coordinador es otro usuario.
+     * Esperado: se rechaza con "No tienes acceso a este equipo".
+     * Resultado: error FORBIDDEN.
+     */
+    @Test
+    @DisplayName("E6 - Coordinador de otro equipo no puede crear tareas en un equipo ajeno")
+    void rejectsCoordinatorWhoDoesNotCoordinateTheTeam() {
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        StepVerifier.create(useCase.requireCoordinator(TaskTestData.TEAM_ID, TaskTestData.OTHER_COLLABORATOR_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.FORBIDDEN
+                        && "No tienes acceso a este equipo".equals(failure.getMessage()))
+                .verify();
+    }
+
+    /**
+     * HU Crear tarea - E5 (otro equipo).
+     * Caso: se valida como responsable a un colaborador que pertenece a un equipo distinto al de la tarea.
+     * Esperado: se rechaza con "El responsable debe pertenecer al equipo de la tarea".
+     * Resultado: error CONFLICT.
+     */
+    @Test
+    @DisplayName("E5 - Responsable de otro equipo es rechazado con conflicto")
+    void rejectsResponsibleFromAnotherTeamWithConflict() {
+        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.otherTeam()));
+        StepVerifier.create(useCase.requireMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.CONFLICT
+                        && "El responsable debe pertenecer al equipo de la tarea".equals(failure.getMessage()))
+                .verify();
+    }
+
+    /**
+     * HU Crear tarea - E1.
+     * Caso: se crea una tarea sin responsable (responsable nulo).
+     * Esperado: no se exige pertenencia a ningún equipo.
+     * Resultado: el flujo completa sin consultar el equipo del miembro.
+     */
+    @Test
+    @DisplayName("E1 - Sin responsable no se valida pertenencia al equipo")
+    void skipsMembershipValidationWhenTaskHasNoResponsible() {
+        StepVerifier.create(useCase.requireMember(TaskTestData.TEAM_ID, null)).verifyComplete();
+        verifyNoInteractions(teams);
+    }
+
+    private static final TeamMember MEMBER_ONE = new TeamMember(
+            TaskTestData.COLLABORATOR_ID, TaskTestData.COLLABORATOR_EMAIL, "Colab", "Uno");
+    private static final TeamMember MEMBER_TWO = new TeamMember(
+            TaskTestData.OTHER_COLLABORATOR_ID, TaskTestData.OTHER_COLLABORATOR_EMAIL, null, null);
+
+    private void givenActor(TaskUser actor) {
+        when(users.findByEmail(actor.email())).thenReturn(Mono.just(actor));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+    }
+
+    private void givenCoordinatorOfTheTeam() {
+        givenActor(TaskTestData.coordinator());
+    }
+
+    private static TaskUser userWithRole(String email, RoleCode role) {
+        return new TaskUser(TaskTestData.OTHER_COLLABORATOR_ID, email, "Usuario", "Prueba", java.util.List.of(role.name()));
+    }
+
+    /**
+     * Spec HU-12 Parte A (R1).
+     * Caso: el coordinador del equipo consulta los miembros de su equipo.
+     * Esperado: recibe los colaboradores activos que entrega el repositorio, en el mismo orden.
+     * Resultado: el flujo emite MEMBER_ONE y MEMBER_TWO (este último con nombre y apellido nulos).
+     */
+    @Test
+    @DisplayName("R1 - Coordinador del equipo obtiene los colaboradores activos de su equipo")
+    void listsActiveCollaboratorsForTheCoordinatorOfTheTeam() {
+        givenCoordinatorOfTheTeam();
+        when(teams.findActiveCollaborators(TaskTestData.TEAM_ID)).thenReturn(Flux.just(MEMBER_ONE, MEMBER_TWO));
+
+        StepVerifier.create(useCase.listMembers(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID))
+                .expectNext(MEMBER_ONE, MEMBER_TWO)
+                .verifyComplete();
+    }
+
+    /**
+     * Spec HU-12 Parte A (R1).
+     * Caso: el equipo no tiene colaboradores activos.
+     * Esperado: el flujo completa vacío (el front muestra "Este equipo aún no tiene colaboradores").
+     * Resultado: sin elementos y sin error.
+     */
+    @Test
+    @DisplayName("R1 - Equipo sin colaboradores activos devuelve un flujo vacío")
+    void listsNoMembersWhenTeamHasNoActiveCollaborators() {
+        givenCoordinatorOfTheTeam();
+        when(teams.findActiveCollaborators(TaskTestData.TEAM_ID)).thenReturn(Flux.empty());
+
+        StepVerifier.create(useCase.listMembers(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID))
+                .verifyComplete();
+    }
+
+    /**
+     * Spec HU-12 Parte A (R2).
+     * Caso: un coordinador consulta los miembros de un equipo que coordina otro usuario.
+     * Esperado: se rechaza con "No tienes acceso a este equipo" y no se consultan los miembros.
+     * Resultado: error FORBIDDEN y `findActiveCollaborators` nunca se invoca.
+     */
+    @Test
+    @DisplayName("R2 - Coordinador de otro equipo: acceso prohibido y no consulta miembros")
+    void rejectsMembersQueryFromCoordinatorOfAnotherTeam() {
+        givenActor(userWithRole("otro.coord@compira.co", RoleCode.COORDINATOR));
+
+        StepVerifier.create(useCase.listMembers("otro.coord@compira.co", TaskTestData.TEAM_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.FORBIDDEN
+                        && "No tienes acceso a este equipo".equals(failure.getMessage()))
+                .verify();
+
+        verify(teams, never()).findActiveCollaborators(any());
+    }
+
+    /**
+     * Spec HU-12 Parte A (R3).
+     * Caso: un administrador consulta los miembros de un equipo que no coordina.
+     * Esperado: se permite y recibe los miembros.
+     * Resultado: el flujo emite MEMBER_ONE.
+     */
+    @Test
+    @DisplayName("R3 - Administrador obtiene los miembros de cualquier equipo")
+    void listsMembersForAdministratorOfAnyTeam() {
+        givenActor(userWithRole("admin@compira.co", RoleCode.ADMINISTRATOR));
+        when(teams.findActiveCollaborators(TaskTestData.TEAM_ID)).thenReturn(Flux.just(MEMBER_ONE));
+
+        StepVerifier.create(useCase.listMembers("admin@compira.co", TaskTestData.TEAM_ID))
+                .expectNext(MEMBER_ONE)
+                .verifyComplete();
+    }
+
+    /**
+     * Spec HU-12 Parte A (R4).
+     * Caso: se consultan los miembros de un equipo que no existe.
+     * Esperado: se responde "Equipo no encontrado" y no se consultan los miembros.
+     * Resultado: error NOT_FOUND y `findActiveCollaborators` nunca se invoca.
+     */
+    @Test
+    @DisplayName("R4 - Equipo inexistente: Equipo no encontrado")
+    void rejectsMembersQueryWhenTeamDoesNotExist() {
+        givenActor(TaskTestData.coordinator());
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.empty());
+
+        StepVerifier.create(useCase.listMembers(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.NOT_FOUND
+                        && "Equipo no encontrado".equals(failure.getMessage()))
+                .verify();
+
+        verify(teams, never()).findActiveCollaborators(any());
+    }
+
+    /**
+     * Spec HU-12 Parte A (R5).
+     * Caso: un colaborador intenta consultar los miembros de un equipo.
+     * Esperado: se rechaza con acceso prohibido.
+     * Resultado: error FORBIDDEN y no se consultan los miembros.
+     */
+    @Test
+    @DisplayName("R5 - Colaborador no puede consultar miembros del equipo")
+    void rejectsMembersQueryFromCollaborator() {
+        givenActor(TaskTestData.collaborator());
+
+        StepVerifier.create(useCase.listMembers(TaskTestData.COLLABORATOR_EMAIL, TaskTestData.TEAM_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.FORBIDDEN)
+                .verify();
+
+        verify(teams, never()).findActiveCollaborators(any());
+    }
+
+    /**
+     * Spec HU-12 Parte A (R2).
+     * Caso: el usuario que consulta los miembros no existe en el directorio.
+     * Esperado: se rechaza como usuario no encontrado y no se consulta ni el equipo ni los miembros.
+     * Resultado: error NOT_FOUND ("No se encontró el usuario que realiza la operación") sin llamadas a `findById`
+     * ni a `findActiveCollaborators`.
+     */
+    @Test
+    @DisplayName("R2 - Usuario inexistente: no se consulta el equipo ni los miembros")
+    void rejectsMembersQueryWhenActorDoesNotExist() {
+        when(users.findByEmail("fantasma@compira.co")).thenReturn(Mono.empty());
+
+        StepVerifier.create(useCase.listMembers("fantasma@compira.co", TaskTestData.TEAM_ID))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.NOT_FOUND)
+                .verify();
+
+        verify(teams, never()).findById(any());
+        verify(teams, never()).findActiveCollaborators(any());
     }
 
     @Test

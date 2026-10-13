@@ -2,6 +2,7 @@ package co.com.compira.api.router;
 
 import co.com.compira.api.notification.NotificationHandler;
 import co.com.compira.api.team.TeamHandler;
+import co.com.compira.api.team.TeamMemberResponse;
 import co.com.compira.api.team.TeamResponse;
 import co.com.compira.api.notification.NotificationResponse;
 import co.com.compira.api.organization.OrganizationSettingsHandler;
@@ -53,6 +54,13 @@ public class NotificationRouterRest {
                     @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
                     @ApiResponse(responseCode = "403", description = "Acceso no permitido"), @ApiResponse(responseCode = "404", description = "Equipo, usuario o tarea no encontrado"),
                     @ApiResponse(responseCode = "409", description = "Vinculación o rol incompatible"), @ApiResponse(responseCode = "500", description = "Error interno")})),
+        @RouterOperation(path = TeamHandler.MEMBERS, method = RequestMethod.GET, beanClass = TeamHandler.class, beanMethod = "members",
+            operation = @Operation(operationId = "listMembersTeam", summary = "Listar colaboradores activos del equipo (Administrador o Coordinador del equipo)", security = @SecurityRequirement(name = "bearerAuth"),
+                parameters = @Parameter(name = "teamId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "string", format = "uuid")),
+                responses = {@ApiResponse(responseCode = "200", content = @Content(array = @ArraySchema(schema = @Schema(implementation = TeamMemberResponse.class)))),
+                    @ApiResponse(responseCode = "400", description = "teamId no es un UUID válido"), @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+                    @ApiResponse(responseCode = "403", description = "No tienes acceso a este equipo"), @ApiResponse(responseCode = "404", description = "Equipo no encontrado"),
+                    @ApiResponse(responseCode = "500", description = "Error interno")})),
         @RouterOperation(path = TeamHandler.MEMBERS, method = RequestMethod.POST, beanClass = TeamHandler.class, beanMethod = "addMember",
             operation = @Operation(operationId = "addMemberTeam", summary = "Vincular colaborador sin equipo (Administrador o Coordinador del equipo)", security = @SecurityRequirement(name = "bearerAuth"),
                 parameters = @Parameter(name = "teamId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "string", format = "uuid")),
@@ -104,9 +112,9 @@ public class NotificationRouterRest {
                     @ApiResponse(responseCode = "401", description = "Token inválido o vencido"), @ApiResponse(responseCode = "403", description = "Rol no autorizado"),
                     @ApiResponse(responseCode = "500", description = "Error interno; un fallo posterior a la conexión cierra el flujo")})),
         @RouterOperation(path = OrganizationSettingsHandler.BASE, method = RequestMethod.GET, beanClass = OrganizationSettingsHandler.class, beanMethod = "get",
-            operation = @Operation(operationId = "getOrganizationSettings", summary = "Consultar configuración global (Administrador)", security = @SecurityRequirement(name = "bearerAuth"),
+            operation = @Operation(operationId = "getOrganizationSettings", summary = "Consultar configuración global (Administrador o Coordinador)", security = @SecurityRequirement(name = "bearerAuth"),
                 responses = {@ApiResponse(responseCode = "200", content = @Content(schema = @Schema(implementation = OrganizationSettingsResponse.class))),
-                    @ApiResponse(responseCode = "401", description = "Autenticación requerida"), @ApiResponse(responseCode = "403", description = "Administrador requerido"), @ApiResponse(responseCode = "500", description = "Error interno")})),
+                    @ApiResponse(responseCode = "401", description = "Autenticación requerida"), @ApiResponse(responseCode = "403", description = "Administrador o Coordinador requerido"), @ApiResponse(responseCode = "500", description = "Error interno")})),
         @RouterOperation(path = OrganizationSettingsHandler.BASE, method = RequestMethod.PUT, beanClass = OrganizationSettingsHandler.class, beanMethod = "save",
             operation = @Operation(operationId = "saveOrganizationSettings", summary = "Guardar zona IANA e interruptor global (Administrador)", security = @SecurityRequirement(name = "bearerAuth"),
                 requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = OrganizationSettingsRequest.class))),
@@ -116,7 +124,8 @@ public class NotificationRouterRest {
     })
     public RouterFunction<ServerResponse> notificationRoutes(NotificationHandler notifications, OrganizationSettingsHandler settings, TeamHandler teams) {
         return RouterFunctions.route().GET(TeamHandler.BASE, teams::list).POST(TeamHandler.BASE, teams::create)
-                .PUT(TeamHandler.COORDINATOR, teams::changeCoordinator).POST(TeamHandler.MEMBERS, teams::addMember)
+                .PUT(TeamHandler.COORDINATOR, teams::changeCoordinator).GET(TeamHandler.MEMBERS, teams::members)
+                .POST(TeamHandler.MEMBERS, teams::addMember)
                 .POST(TeamHandler.REASSIGN_MEMBERS, teams::reassignMember)
                 .POST(TeamHandler.TASKS, teams::linkTask).GET(NotificationHandler.STREAM, notifications::stream)
                 .GET(NotificationHandler.BASE, notifications::list)

@@ -47,6 +47,13 @@ public class TeamHandler {
                 .flatMap(result -> ServerResponse.ok().bodyValue(result)).onErrorResume(errors::handle);
     }
 
+    public Mono<ServerResponse> members(ServerRequest request) {
+        return request.principal().flatMap(principal -> Mono.fromCallable(() -> UUID.fromString(request.pathVariable(TEAM_ID)))
+                        .flatMapMany(teamId -> teams.listMembers(principal.getName(), teamId))
+                        .map(mapper::toResponse).collectList())
+                .flatMap(result -> ServerResponse.ok().bodyValue(result)).onErrorResume(errors::handle);
+    }
+
     public Mono<ServerResponse> create(ServerRequest request) {
         return request.principal().flatMap(principal -> body(request, CreateTeamRequest.class)
                         .flatMap(input -> teams.create(principal.getName(), input.name().trim(), input.coordinatorEmail())))

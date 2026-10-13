@@ -1,6 +1,7 @@
 package co.com.compira.r2dbc;
 
 import co.com.compira.model.team.Team;
+import co.com.compira.model.team.TeamMember;
 import co.com.compira.r2dbc.mapper.TeamDataMapper;
 import co.com.compira.model.team.gateways.TeamRepositoryGateway;
 import co.com.compira.model.common.error.CompiraException;
@@ -22,6 +23,17 @@ public class TeamRepositoryAdapter implements TeamRepositoryGateway {
     private static final String MEMBER_ID = "memberId";
     private static final String NAME = "name";
     private static final String SELECT = "SELECT t.id, t.name, t.coordinator_user_id, u.email FROM teams t JOIN users u ON u.id = t.coordinator_user_id";
+    private static final String ACTIVE_COLLABORATORS = """
+            SELECT u.id, u.email, u.first_name, u.last_name
+            FROM team_members m
+            JOIN users u ON u.id = m.user_id
+            JOIN user_roles ur ON ur.user_id = u.id
+            JOIN roles r ON r.id = ur.role_id
+            WHERE m.team_id = :teamId
+              AND u.status = 'ACTIVE'
+              AND r.code = 'COLLABORATOR'
+            ORDER BY u.first_name, u.last_name, u.email
+            """;
     private static final String ID = "id";
     private static final String TEAM_ID = "teamId";
     private static final String COORDINATOR_ID = "coordinatorId";
@@ -44,6 +56,10 @@ public class TeamRepositoryAdapter implements TeamRepositoryGateway {
     public Flux<Team> findByCoordinator(UUID coordinatorId) {
         return select(database.sql(SELECT + " WHERE t.coordinator_user_id = :coordinatorId ORDER BY t.name, t.id")
                 .bind(COORDINATOR_ID, coordinatorId));
+    }
+
+    public Flux<TeamMember> findActiveCollaborators(UUID teamId) {
+        return database.sql(ACTIVE_COLLABORATORS).bind(TEAM_ID, teamId).fetch().all().map(mapper::toTeamMember);
     }
 
     public Mono<Team> findById(UUID teamId) {

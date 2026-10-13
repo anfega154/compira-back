@@ -5,6 +5,8 @@ public final class TaskValidationMessage {
     public static final String ACTOR_EMAIL_REQUIRED = "El correo del usuario que realiza la operación es obligatorio";
     public static final String TITLE_REQUIRED = "El título de la tarea es obligatorio";
     public static final String TITLE_LENGTH = "El título puede tener máximo 150 caracteres";
+    public static final String DESCRIPTION_REQUIRED = "La descripción de la tarea es obligatoria";
+    public static final String DUE_DATE_REQUIRED = "La fecha límite es obligatoria";
     public static final String DESCRIPTION_LENGTH = "La descripción puede tener máximo 2000 caracteres";
     public static final String RESPONSIBLE_EMAIL_REQUIRED = "El correo del responsable es obligatorio";
     public static final String RESPONSIBLE_EMAIL_INVALID = "El correo del responsable no tiene un formato válido";
