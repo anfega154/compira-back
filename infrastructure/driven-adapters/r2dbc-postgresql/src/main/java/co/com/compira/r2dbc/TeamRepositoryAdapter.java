@@ -73,7 +73,12 @@ public class TeamRepositoryAdapter implements TeamRepositoryGateway {
 
     public Mono<Team> findByMemberId(UUID memberId) {
         return select(database.sql(SELECT + " JOIN team_members m ON m.team_id = t.id WHERE m.user_id = :memberId")
-                .bind(MEMBER_ID, memberId)).singleOrEmpty();
+                .bind(MEMBER_ID, memberId)).next();
+    }
+
+    public Mono<Boolean> isMember(UUID teamId, UUID memberId) {
+        return database.sql("SELECT 1 FROM team_members WHERE team_id = :teamId AND user_id = :memberId")
+                .bind(TEAM_ID, teamId).bind(MEMBER_ID, memberId).fetch().first().hasElement();
     }
 
     public Mono<Team> create(String name, UUID coordinatorId) {
@@ -95,8 +100,10 @@ public class TeamRepositoryAdapter implements TeamRepositoryGateway {
     }
 
     public Mono<Void> reassignMember(UUID teamId, UUID memberId) {
-        return database.sql("UPDATE team_members SET team_id = :teamId WHERE user_id = :memberId")
-                .bind(TEAM_ID, teamId).bind(MEMBER_ID, memberId).fetch().rowsUpdated()
+        return database.sql("DELETE FROM team_members WHERE user_id = :memberId")
+                .bind(MEMBER_ID, memberId).fetch().rowsUpdated()
+                .then(database.sql("INSERT INTO team_members (user_id, team_id) VALUES (:memberId, :teamId)")
+                        .bind(MEMBER_ID, memberId).bind(TEAM_ID, teamId).fetch().rowsUpdated())
                 .onErrorMap(DataIntegrityViolationException.class, cause -> new CompiraException(
                         MEMBER_CONFLICT_CODE, MEMBER_CONFLICT, ErrorCategory.CONFLICT, cause)).then();
     }

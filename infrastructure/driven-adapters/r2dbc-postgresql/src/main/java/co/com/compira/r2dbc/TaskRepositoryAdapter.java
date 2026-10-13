@@ -38,13 +38,19 @@ public class TaskRepositoryAdapter implements TaskRepositoryGateway {
             WHERE id = :taskId
             RETURNING *
             """;
-    private static final String SELECT_TASK_BY_ID_QUERY = "SELECT * FROM tasks WHERE id = :taskId";
+    private static final String TASK_WITH_TEAM_SELECT = """
+            SELECT tasks.*, t.id AS team_id, t.name AS team_name
+            FROM tasks
+            LEFT JOIN task_teams tt ON tt.task_id = tasks.id
+            LEFT JOIN teams t ON t.id = tt.team_id
+            """;
+    private static final String SELECT_TASK_BY_ID_QUERY = TASK_WITH_TEAM_SELECT + " WHERE tasks.id = :taskId";
     private static final String SELECT_TASKS_BY_RESPONSIBLE_QUERY =
-            "SELECT * FROM tasks WHERE responsible_user_id = :responsibleUserId ORDER BY due_date NULLS LAST, created_at DESC";
+            TASK_WITH_TEAM_SELECT + " WHERE tasks.responsible_user_id = :responsibleUserId ORDER BY tasks.due_date NULLS LAST, tasks.created_at DESC";
     private static final String SELECT_TASKS_BY_CREATOR_QUERY =
-            "SELECT tasks.* FROM tasks JOIN task_teams tt ON tt.task_id = tasks.id JOIN teams t ON t.id = tt.team_id WHERE t.coordinator_user_id = :createdByUserId ORDER BY due_date NULLS LAST, created_at DESC";
+            TASK_WITH_TEAM_SELECT + " WHERE t.coordinator_user_id = :createdByUserId ORDER BY tasks.due_date NULLS LAST, tasks.created_at DESC";
     private static final String SELECT_ALL_TASKS_QUERY =
-            "SELECT * FROM tasks ORDER BY due_date NULLS LAST, created_at DESC";
+            TASK_WITH_TEAM_SELECT + " ORDER BY tasks.due_date NULLS LAST, tasks.created_at DESC";
     private static final String INSERT_OBSERVATION_QUERY = """
             INSERT INTO task_observations (task_id, author_user_id, content)
             VALUES (:taskId, :authorUserId, :content)

@@ -48,7 +48,9 @@ public class GetTaskUseCase {
                     task.responsibleUserId(),
                     task.createdByUserId(),
                     task.createdAt(),
-                    task.updatedAt());
+                    task.updatedAt(),
+                    task.teamId(),
+                    task.teamName());
         }
         return task;
     }

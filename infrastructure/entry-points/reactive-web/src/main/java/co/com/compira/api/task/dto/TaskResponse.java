@@ -13,5 +13,7 @@ public record TaskResponse(
         UUID responsibleUserId,
         UUID createdByUserId,
         OffsetDateTime createdAt,
-        OffsetDateTime updatedAt) {
+        OffsetDateTime updatedAt,
+        UUID teamId,
+        String teamName) {
 }

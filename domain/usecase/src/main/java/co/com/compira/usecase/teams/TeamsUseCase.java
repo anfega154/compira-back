@@ -16,7 +16,6 @@ import java.util.UUID;
 
 public class TeamsUseCase {
     private static final String TEAM_ERROR = "TEAM_001";
-    private static final String ALREADY_MEMBER = "El colaborador ya pertenece a otro equipo";
     private static final String SAME_TEAM = "El colaborador ya pertenece al equipo destino";
     private static final String TASK_NOT_FOUND = "Tarea no encontrada";
     private static final String INVALID_MEMBER = "El responsable debe pertenecer al equipo de la tarea";
@@ -55,10 +54,10 @@ public class TeamsUseCase {
     public Mono<Void> addMember(String email, UUID teamId, String memberEmail) {
         return requireTeamLinkingAccess(email, teamId)
                 .flatMap(team -> authorization.resolveCollaborator(memberEmail))
-                .flatMap(member -> teams.findByMemberId(member.id())
-                        .flatMap(existing -> existing.id().equals(teamId) ? Mono.just(existing)
-                                : Mono.<Team>error(error(ALREADY_MEMBER, ErrorCategory.CONFLICT)))
-                        .switchIfEmpty(Mono.defer(() -> teams.addMember(teamId, member.id()).then(requireTeam(teamId)))))
+                .flatMap(member -> teams.isMember(teamId, member.id())
+                        .flatMap(alreadyMember -> Boolean.TRUE.equals(alreadyMember)
+                                ? Mono.<Void>error(error(SAME_TEAM, ErrorCategory.CONFLICT))
+                                : teams.addMember(teamId, member.id())))
                 .then();
     }
 
@@ -66,14 +65,10 @@ public class TeamsUseCase {
         return requireAdministrator(email)
                 .then(Mono.defer(() -> requireTeam(teamId)))
                 .then(Mono.defer(() -> authorization.resolveCollaborator(memberEmail)))
-                .flatMap(member -> teams.findByMemberId(member.id())
-                        .flatMap(current -> current.id().equals(teamId)
-                                ? Mono.<Boolean>error(error(SAME_TEAM, ErrorCategory.CONFLICT))
-                                : teams.reassignMember(teamId, member.id()).thenReturn(Boolean.TRUE))
-                        .defaultIfEmpty(Boolean.FALSE)
-                        .flatMap(reassigned -> Boolean.TRUE.equals(reassigned)
-                                ? Mono.empty()
-                                : teams.addMember(teamId, member.id())))
+                .flatMap(member -> teams.isMember(teamId, member.id())
+                        .flatMap(alreadyInTarget -> Boolean.TRUE.equals(alreadyInTarget)
+                                ? Mono.<Void>error(error(SAME_TEAM, ErrorCategory.CONFLICT))
+                                : teams.reassignMember(teamId, member.id())))
                 .then();
     }
 
@@ -101,7 +96,8 @@ public class TeamsUseCase {
 
     public Mono<Void> requireMember(UUID teamId, UUID memberId) {
         if (memberId == null) return Mono.empty();
-        return teams.findByMemberId(memberId).filter(team -> team.id().equals(teamId))
+        return teams.isMember(teamId, memberId)
+                .filter(Boolean.TRUE::equals)
                 .switchIfEmpty(Mono.error(error(INVALID_MEMBER, ErrorCategory.CONFLICT)))
                 .then();
     }
