@@ -32,7 +32,9 @@ public class TaskResponseMapper {
                 task.responsibleUserId(),
                 task.createdByUserId(),
                 task.createdAt(),
-                task.updatedAt());
+                task.updatedAt(),
+                task.teamId(),
+                task.teamName());
     }
 
     public TaskObservationResponse toResponse(TaskObservation observation) {
