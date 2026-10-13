@@ -13,6 +13,7 @@ public interface TeamRepositoryGateway {
     Mono<Team> findById(UUID teamId);
     Mono<Team> findByTaskId(UUID taskId);
     Mono<Team> findByMemberId(UUID memberId);
+    Mono<Boolean> isMember(UUID teamId, UUID memberId);
     Mono<Team> create(String name, UUID coordinatorId);
     Mono<Team> changeCoordinator(UUID teamId, UUID coordinatorId);
     Mono<Void> addMember(UUID teamId, UUID memberId);

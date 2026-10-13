@@ -157,4 +157,34 @@ class TeamMembersPersistenceTest {
         StepVerifier.create(teams.findActiveCollaborators(UUID.fromString("dddddddd-dddd-4ddd-8ddd-dddddddddddd")))
                 .verifyComplete();
     }
+
+    /**
+     * Caso: un colaborador que ya pertenece al Equipo A se agrega también al Equipo B.
+     * Esperado: la PK compuesta (user_id, team_id) permite ambas membresías sin violar restricciones.
+     * Resultado: addMember completa y el colaborador queda listado como activo en ambos equipos.
+     */
+    @Test
+    @DisplayName("Un colaborador puede pertenecer a dos equipos a la vez")
+    void allowsCollaboratorToBelongToMultipleTeams() {
+        StepVerifier.create(teams.addMember(TEAM_B, ANA_ALFA)).verifyComplete();
+
+        StepVerifier.create(teams.isMember(TEAM_A, ANA_ALFA)).expectNext(true).verifyComplete();
+        StepVerifier.create(teams.isMember(TEAM_B, ANA_ALFA)).expectNext(true).verifyComplete();
+        StepVerifier.create(teams.findActiveCollaborators(TEAM_B).map(TeamMember::id).collectList())
+                .assertNext(ids -> {
+                    org.junit.jupiter.api.Assertions.assertTrue(ids.contains(ANA_ALFA));
+                    org.junit.jupiter.api.Assertions.assertTrue(ids.contains(OTHER_TEAM));
+                })
+                .verifyComplete();
+    }
+
+    /**
+     * Caso: se consulta la pertenencia de un colaborador a un equipo al que no pertenece.
+     * Esperado: isMember devuelve false.
+     */
+    @Test
+    @DisplayName("isMember devuelve false cuando el colaborador no pertenece al equipo")
+    void isMemberReturnsFalseWhenNotInTeam() {
+        StepVerifier.create(teams.isMember(TEAM_B, ANA_ALFA)).expectNext(false).verifyComplete();
+    }
 }

@@ -74,7 +74,7 @@ class TeamsUseCaseTest {
 
     @Test
     void rejectsResponsiblesWhoDoNotBelongToTaskTeam() {
-        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.empty());
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(false));
         StepVerifier.create(useCase.requireMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID))
                 .expectError(CompiraException.class).verify();
     }
@@ -86,7 +86,7 @@ class TeamsUseCaseTest {
         when(users.findByEmail(actor.email())).thenReturn(Mono.just(actor));
         when(users.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
         when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
-        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.empty());
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(false));
         when(teams.addMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.empty());
 
         StepVerifier.create(useCase.addMember(actor.email(), TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL)).verifyComplete();
@@ -100,7 +100,7 @@ class TeamsUseCaseTest {
         when(users.findByEmail(actor.email())).thenReturn(Mono.just(actor));
         when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
         when(tasks.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.PENDING)));
-        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(true));
         when(teams.linkTask(TaskTestData.TASK_ID, TaskTestData.TEAM_ID)).thenReturn(Mono.empty());
 
         StepVerifier.create(useCase.linkExistingTask(actor.email(), TaskTestData.TASK_ID, TaskTestData.TEAM_ID)).verifyComplete();
@@ -186,7 +186,7 @@ class TeamsUseCaseTest {
     @Test
     @DisplayName("E5 - Responsable de otro equipo es rechazado con conflicto")
     void rejectsResponsibleFromAnotherTeamWithConflict() {
-        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.otherTeam()));
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(false));
         StepVerifier.create(useCase.requireMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID))
                 .expectErrorMatches(error -> error instanceof CompiraException failure
                         && failure.getErrorCategory() == ErrorCategory.CONFLICT
@@ -369,13 +369,27 @@ class TeamsUseCaseTest {
     }
 
     @Test
-    void rejectsMovingAnExistingMemberFromAnotherTeam() {
+    void allowsAddingMemberWhoAlreadyBelongsToAnotherTeam() {
         when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
         when(users.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
         when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
-        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.otherTeam()));
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(false));
+        when(teams.addMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.empty());
         StepVerifier.create(useCase.addMember(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL))
-                .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.CONFLICT).verify();
+                .verifyComplete();
+        verify(teams).addMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID);
+    }
+
+    @Test
+    void rejectsAddingMemberAlreadyInTheTargetTeam() {
+        when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
+        when(users.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
+        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(true));
+        StepVerifier.create(useCase.addMember(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL))
+                .expectErrorMatches(error -> error instanceof CompiraException failure
+                        && failure.getErrorCategory() == ErrorCategory.CONFLICT
+                        && "El colaborador ya pertenece al equipo destino".equals(failure.getMessage())).verify();
         verify(teams, never()).addMember(any(), any());
     }
 
@@ -384,7 +398,7 @@ class TeamsUseCaseTest {
         when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
         when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
         when(tasks.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.PENDING)));
-        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.otherTeam()));
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(false));
         StepVerifier.create(useCase.linkExistingTask(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TASK_ID, TaskTestData.TEAM_ID))
                 .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.CONFLICT).verify();
         verify(teams, never()).linkTask(any(), any());
@@ -395,7 +409,7 @@ class TeamsUseCaseTest {
         when(users.findByEmail("admin@compira.co")).thenReturn(Mono.just(TaskTestData.administrator()));
         when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
         when(users.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
-        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.otherTeam()));
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(false));
         when(teams.reassignMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.empty());
 
         StepVerifier.create(useCase.reassignMember("admin@compira.co", TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL))
@@ -408,7 +422,7 @@ class TeamsUseCaseTest {
         when(users.findByEmail("admin@compira.co")).thenReturn(Mono.just(TaskTestData.administrator()));
         when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
         when(users.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
-        when(teams.findByMemberId(TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(TaskTestData.team()));
+        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(true));
 
         StepVerifier.create(useCase.reassignMember("admin@compira.co", TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL))
                 .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.CONFLICT).verify();
