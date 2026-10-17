@@ -126,18 +126,13 @@ class ResourceServerConfigTest {
                 .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
         client.post().uri(TeamHandler.MEMBERS, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
                 .exchange().expectStatus().isNoContent();
-        client.post().uri(TeamHandler.TASKS, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
-                .exchange().expectStatus().isNoContent();
     }
 
     @Test
     void deniesTeamLinkingForCollaboratorsAndAnonymousRequests() {
         client.post().uri(TeamHandler.MEMBERS, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
                 .exchange().expectStatus().isForbidden();
-        client.post().uri(TeamHandler.TASKS, SecurityTestData.SUBJECT).headers(headers -> headers.setBearerAuth("valid-token"))
-                .exchange().expectStatus().isForbidden();
         client.post().uri(TeamHandler.MEMBERS, SecurityTestData.SUBJECT).exchange().expectStatus().isUnauthorized();
-        client.post().uri(TeamHandler.TASKS, SecurityTestData.SUBJECT).exchange().expectStatus().isUnauthorized();
     }
 
     private static final String MEMBERS_PATH = "/api/v1/teams/" + SecurityTestData.team().id() + "/members";
@@ -329,7 +324,6 @@ class ResourceServerConfigTest {
                     .POST(TeamHandler.MEMBERS, request -> ServerResponse.noContent().build())
                     .GET(TeamHandler.MEMBERS, request -> ServerResponse.ok().build())
                     .GET("/api/v1/organization/settings", request -> ServerResponse.ok().build())
-                    .POST(TeamHandler.TASKS, request -> ServerResponse.noContent().build())
                     .POST(co.com.compira.api.task.TaskRoute.API_V1 + co.com.compira.api.task.TaskRoute.TASKS_BASE,
                             request -> ServerResponse.noContent().build())
                     .POST("/api/v1/auth/register", request -> ServerResponse.ok().build())

@@ -13,6 +13,7 @@ import co.com.compira.model.task.TaskObservation;
 import co.com.compira.model.task.TaskUser;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
+import co.com.compira.usecase.teams.TeamsUseCase;
 import reactor.core.publisher.Mono;
 
 import java.util.UUID;
@@ -20,27 +21,24 @@ import java.util.UUID;
 public class AddTaskObservationUseCase {
     private final TaskRepositoryGateway taskRepositoryGateway;
     private final TaskAuthorization taskAuthorization;
+    private final TeamsUseCase teams;
 
     public AddTaskObservationUseCase(TaskRepositoryGateway taskRepositoryGateway,
-                                     TaskUserDirectoryGateway taskUserDirectoryGateway) {
+                                     TaskUserDirectoryGateway taskUserDirectoryGateway,
+                                     TeamsUseCase teams) {
         this.taskRepositoryGateway = taskRepositoryGateway;
         this.taskAuthorization = new TaskAuthorization(taskUserDirectoryGateway);
+        this.teams = teams;
     }
 
     public Mono<TaskObservation> execute(AddTaskObservationCommand command) {
         return taskAuthorization.requireActor(command.actorEmail())
-                .flatMap(actor -> loadTask(command.taskId())
+                .flatMap(actor -> teams.requireTaskAccess(command.actorEmail(), command.taskId())
+                        .then(Mono.defer(() -> loadTask(command.taskId())))
                         .flatMap(task -> registerObservation(actor, task, command.content())));
     }
 
     private Mono<TaskObservation> registerObservation(TaskUser actor, Task task, String content) {
-        if (!actor.id().equals(task.responsibleUserId())) {
-            return Mono.error(new CompiraException(
-                    TaskErrorCode.ACTOR_NOT_RESPONSIBLE,
-                    TaskMessage.ACTOR_NOT_RESPONSIBLE,
-                    ErrorCategory.FORBIDDEN));
-        }
-
         TaskObservation observation = new TaskObservation(null, task.id(), actor.id(), content, null);
         return taskRepositoryGateway.saveObservation(observation)
                 .flatMap(savedObservation -> taskRepositoryGateway.appendHistory(new TaskHistoryEntry(

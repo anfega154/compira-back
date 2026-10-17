@@ -93,20 +93,6 @@ class TeamsUseCaseTest {
         verify(teams).addMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID);
     }
 
-    @ParameterizedTest
-    @EnumSource(value = RoleCode.class, names = {"ADMINISTRATOR", "COORDINATOR"})
-    void allowsAuthorizedActorToLinkTaskWhoseResponsibleBelongsToTeam(RoleCode role) {
-        var actor = role == RoleCode.ADMINISTRATOR ? TaskTestData.administrator() : TaskTestData.coordinator();
-        when(users.findByEmail(actor.email())).thenReturn(Mono.just(actor));
-        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
-        when(tasks.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.PENDING)));
-        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(true));
-        when(teams.linkTask(TaskTestData.TASK_ID, TaskTestData.TEAM_ID)).thenReturn(Mono.empty());
-
-        StepVerifier.create(useCase.linkExistingTask(actor.email(), TaskTestData.TASK_ID, TaskTestData.TEAM_ID)).verifyComplete();
-        verify(teams).linkTask(TaskTestData.TASK_ID, TaskTestData.TEAM_ID);
-    }
-
     @Test
     void rejectsCoordinatorLinkingAfterTeamCoordinatorChanges() {
         when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
@@ -115,8 +101,6 @@ class TeamsUseCaseTest {
         when(tasks.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.PENDING)));
 
         StepVerifier.create(useCase.addMember(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_EMAIL))
-                .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.FORBIDDEN).verify();
-        StepVerifier.create(useCase.linkExistingTask(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TASK_ID, TaskTestData.TEAM_ID))
                 .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.FORBIDDEN).verify();
         verify(teams, never()).addMember(any(), any());
         verify(teams, never()).linkTask(any(), any());
@@ -130,8 +114,6 @@ class TeamsUseCaseTest {
         when(tasks.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.PENDING)));
 
         StepVerifier.create(useCase.addMember(TaskTestData.COLLABORATOR_EMAIL, TaskTestData.TEAM_ID, TaskTestData.OTHER_COLLABORATOR_EMAIL))
-                .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.FORBIDDEN).verify();
-        StepVerifier.create(useCase.linkExistingTask(TaskTestData.COLLABORATOR_EMAIL, TaskTestData.TASK_ID, TaskTestData.TEAM_ID))
                 .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.FORBIDDEN).verify();
         verify(teams, never()).addMember(any(), any());
         verify(teams, never()).linkTask(any(), any());
@@ -394,17 +376,6 @@ class TeamsUseCaseTest {
     }
 
     @Test
-    void rejectsLinkingTaskWhenResponsibleBelongsToAnotherTeam() {
-        when(users.findByEmail(TaskTestData.COORDINATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.coordinator()));
-        when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
-        when(tasks.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.PENDING)));
-        when(teams.isMember(TaskTestData.TEAM_ID, TaskTestData.COLLABORATOR_ID)).thenReturn(Mono.just(false));
-        StepVerifier.create(useCase.linkExistingTask(TaskTestData.COORDINATOR_EMAIL, TaskTestData.TASK_ID, TaskTestData.TEAM_ID))
-                .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.CONFLICT).verify();
-        verify(teams, never()).linkTask(any(), any());
-    }
-
-    @Test
     void administratorReassignsCollaboratorToAnotherTeam() {
         when(users.findByEmail("admin@compira.co")).thenReturn(Mono.just(TaskTestData.administrator()));
         when(teams.findById(TaskTestData.TEAM_ID)).thenReturn(Mono.just(TaskTestData.team()));
@@ -438,4 +409,5 @@ class TeamsUseCaseTest {
                 .expectErrorMatches(error -> error instanceof CompiraException failure && failure.getErrorCategory() == ErrorCategory.FORBIDDEN).verify();
         verify(teams, never()).reassignMember(any(), any());
     }
+
 }

@@ -124,4 +124,19 @@ class NotificationPersistenceTest {
                 .assertNext(team -> assertEquals(TEAM, team.id())).verifyComplete();
     }
 
+
+    @Test
+    void persistsCoordinatorObservationAndHistoryWithOriginalAuthor() {
+        var observation = new co.com.compira.model.task.TaskObservation(null, TASK, CURRENT_COORDINATOR, "Revisión del coordinador", null);
+        StepVerifier.create(tasks.saveObservation(observation)
+                .flatMap(saved -> tasks.appendHistory(new co.com.compira.model.task.TaskHistoryEntry(null, TASK,
+                        co.com.compira.model.task.TaskHistoryEvent.OBSERVATION_ADDED, CURRENT_COORDINATOR, null, null, saved.content(), null))))
+                .expectNextCount(1).verifyComplete();
+        StepVerifier.create(tasks.findObservations(TASK))
+                .assertNext(saved -> { assertNotNull(saved.id()); assertEquals(CURRENT_COORDINATOR, saved.authorUserId()); assertEquals(observation.content(), saved.content()); })
+                .verifyComplete();
+        StepVerifier.create(tasks.findHistory(TASK))
+                .assertNext(saved -> { assertEquals(CURRENT_COORDINATOR, saved.actorUserId()); assertEquals(observation.content(), saved.detail()); })
+                .verifyComplete();
+    }
 }
