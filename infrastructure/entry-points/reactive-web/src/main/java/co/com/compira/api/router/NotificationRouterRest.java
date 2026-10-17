@@ -77,13 +77,6 @@ public class NotificationRouterRest {
                     @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
                     @ApiResponse(responseCode = "403", description = "Acceso no permitido"), @ApiResponse(responseCode = "404", description = "Equipo o usuario no encontrado"),
                     @ApiResponse(responseCode = "409", description = "Ya pertenece al equipo destino"), @ApiResponse(responseCode = "500", description = "Error interno")})),
-        @RouterOperation(path = TeamHandler.TASKS, method = RequestMethod.POST, beanClass = TeamHandler.class, beanMethod = "linkTask",            operation = @Operation(operationId = "linkTaskTeam", summary = "Vincular tarea existente sin equipo (Administrador o Coordinador del equipo)", security = @SecurityRequirement(name = "bearerAuth"),
-                parameters = @Parameter(name = "teamId", in = ParameterIn.PATH, required = true, schema = @Schema(type = "string", format = "uuid")),
-                requestBody = @RequestBody(required = true, content = @Content(schema = @Schema(implementation = TeamHandler.LinkTaskRequest.class))),
-                responses = {@ApiResponse(responseCode = "204", description = "Vinculación guardada"),
-                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"), @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
-                    @ApiResponse(responseCode = "403", description = "Acceso no permitido"), @ApiResponse(responseCode = "404", description = "Equipo, usuario o tarea no encontrado"),
-                    @ApiResponse(responseCode = "409", description = "Vinculación o rol incompatible"), @ApiResponse(responseCode = "500", description = "Error interno")})),
         @RouterOperation(path = NotificationHandler.BASE, method = RequestMethod.GET, beanClass = NotificationHandler.class, beanMethod = "list",
             operation = @Operation(operationId = "listNotifications", summary = "Consultar hasta 50 avisos propios, más recientes primero",
                 security = @SecurityRequirement(name = "bearerAuth"),
@@ -127,7 +120,7 @@ public class NotificationRouterRest {
                 .PUT(TeamHandler.COORDINATOR, teams::changeCoordinator).GET(TeamHandler.MEMBERS, teams::members)
                 .POST(TeamHandler.MEMBERS, teams::addMember)
                 .POST(TeamHandler.REASSIGN_MEMBERS, teams::reassignMember)
-                .POST(TeamHandler.TASKS, teams::linkTask).GET(NotificationHandler.STREAM, notifications::stream)
+                .GET(NotificationHandler.STREAM, notifications::stream)
                 .GET(NotificationHandler.BASE, notifications::list)
                 .POST(NotificationHandler.READ, notifications::markRead)
                 .POST(NotificationHandler.READ_ALL, notifications::markAllRead)

@@ -54,6 +54,16 @@ class Module3HandlerTest {
     void closeValidator() { factory.close(); }
 
     @Test
+    void noLongerExposesTeamlessTaskLinkingOrSearch() {
+        String path = TeamHandler.BASE + "/55555555-5555-5555-5555-555555555555/tasks";
+        client.get().uri(path).exchange().expectStatus().isNotFound();
+        client.post().uri(path).contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                .bodyValue("{\"taskId\":\"11111111-1111-1111-1111-111111111111\"}")
+                .exchange().expectStatus().isNotFound();
+        verifyNoInteractions(teams);
+    }
+
+    @Test
     void mapsTeamsWithoutExposingDomainObjects() {
         when(teams.list(SecurityTestData.EMAIL)).thenReturn(Flux.just(SecurityTestData.team()));
         client.get().uri(TeamHandler.BASE).exchange().expectStatus().isOk().expectBody()

@@ -72,13 +72,6 @@ public class TeamsUseCase {
                 .then();
     }
 
-    public Mono<Void> linkExistingTask(String email, UUID taskId, UUID teamId) {
-        return requireTeamLinkingAccess(email, teamId).flatMap(team -> tasks.findById(taskId))
-                .switchIfEmpty(Mono.error(error(TASK_NOT_FOUND, ErrorCategory.NOT_FOUND)))
-                .flatMap(task -> requireMember(teamId, task.responsibleUserId())
-                        .then(Mono.defer(() -> teams.linkTask(taskId, teamId))));
-    }
-
     public Mono<Team> requireCoordinator(UUID teamId, UUID coordinatorId) {
         return requireTeam(teamId).filter(team -> team.coordinatorUserId().equals(coordinatorId))
                 .switchIfEmpty(Mono.error(error(FORBIDDEN, ErrorCategory.FORBIDDEN)));

@@ -5,7 +5,6 @@ import co.com.compira.api.task.TaskRequestValidator;
 import co.com.compira.usecase.teams.TeamsUseCase;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.reactive.TransactionalOperator;
 import org.springframework.web.reactive.function.server.ServerRequest;
@@ -22,7 +21,6 @@ public class TeamHandler {
     public static final String COORDINATOR = BASE + "/{teamId}/coordinator";
     public static final String MEMBERS = BASE + "/{teamId}/members";
     public static final String REASSIGN_MEMBERS = BASE + "/{teamId}/members/reassign";
-    public static final String TASKS = BASE + "/{teamId}/tasks";
     private static final String TEAM_ID = "teamId";
     private final TeamsUseCase teams;
     private final TaskRequestValidator validator;
@@ -40,7 +38,6 @@ public class TeamHandler {
 
     public record CreateTeamRequest(@NotBlank(message = REQUIRED_FIELD) String name, @NotBlank(message = REQUIRED_FIELD) @Email(message = INVALID_EMAIL) String coordinatorEmail) { }
     public record UserEmailRequest(@NotBlank(message = REQUIRED_FIELD) @Email(message = INVALID_EMAIL) String email) { }
-    public record LinkTaskRequest(@NotNull(message = REQUIRED_FIELD) UUID taskId) { }
 
     public Mono<ServerResponse> list(ServerRequest request) {
         return request.principal().flatMap(principal -> teams.list(principal.getName()).map(mapper::toResponse).collectList())
@@ -77,12 +74,6 @@ public class TeamHandler {
     public Mono<ServerResponse> reassignMember(ServerRequest request) {
         return request.principal().flatMap(principal -> body(request, UserEmailRequest.class)
                         .flatMap(input -> teams.reassignMember(principal.getName(), UUID.fromString(request.pathVariable(TEAM_ID)), input.email())))
-                .then(ServerResponse.noContent().build()).as(transactions::transactional).onErrorResume(errors::handle);
-    }
-
-    public Mono<ServerResponse> linkTask(ServerRequest request) {
-        return request.principal().flatMap(principal -> body(request, LinkTaskRequest.class)
-                        .flatMap(input -> teams.linkExistingTask(principal.getName(), input.taskId(), UUID.fromString(request.pathVariable(TEAM_ID)))))
                 .then(ServerResponse.noContent().build()).as(transactions::transactional).onErrorResume(errors::handle);
     }
 
