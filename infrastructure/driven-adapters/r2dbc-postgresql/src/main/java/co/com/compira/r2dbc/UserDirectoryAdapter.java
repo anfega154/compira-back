@@ -27,11 +27,14 @@ public class UserDirectoryAdapter implements UserDirectoryGateway {
     private static final String ROLE_CODE = "roleCode";
     private static final String SELECT_USERS = """
             SELECT u.id, u.email, u.first_name, u.last_name, u.phone_number, u.status,
-                   u.created_at, u.last_login_at, t.id AS team_id, t.name AS team_name
+                   u.created_at, u.last_login_at,
+                   (ARRAY_AGG(t.id ORDER BY t.name) FILTER (WHERE t.id IS NOT NULL))[1] AS team_id,
+                   STRING_AGG(t.name, ', ' ORDER BY t.name) AS team_name
             FROM users u
             LEFT JOIN team_members tm ON tm.user_id = u.id
             LEFT JOIN teams t ON t.id = tm.team_id
             """;
+    private static final String GROUP_BY_USER = " GROUP BY u.id";
     private static final String ORDER_BY = " ORDER BY u.first_name, u.last_name, u.email";
     private static final String WHERE_EMAIL = " WHERE u.email = :email";
     private static final String SELECT_ROLES = """
@@ -69,17 +72,18 @@ public class UserDirectoryAdapter implements UserDirectoryGateway {
 
     @Override
     public Flux<OrganizationUser> findAll() {
-        return database.sql(SELECT_USERS + ORDER_BY).fetch().all().flatMapSequential(this::withRoles);
+        return database.sql(SELECT_USERS + GROUP_BY_USER + ORDER_BY).fetch().all().flatMapSequential(this::withRoles);
     }
 
     @Override
     public Mono<OrganizationUser> findByEmail(String email) {
-        return database.sql(SELECT_USERS + WHERE_EMAIL).bind(EMAIL, email).fetch().one().flatMap(this::withRoles);
+        return database.sql(SELECT_USERS + WHERE_EMAIL + GROUP_BY_USER).bind(EMAIL, email).fetch().one()
+                .flatMap(this::withRoles);
     }
 
     @Override
     public Mono<OrganizationUser> replaceRoles(String email, List<String> roleCodes) {
-        return database.sql(SELECT_USERS + WHERE_EMAIL).bind(EMAIL, email).fetch().one()
+        return database.sql(SELECT_USERS + WHERE_EMAIL + GROUP_BY_USER).bind(EMAIL, email).fetch().one()
                 .map(row -> (UUID) row.get("id"))
                 .flatMap(userId -> database.sql(DELETE_ROLES).bind(USER_ID, userId).fetch().rowsUpdated()
                         .thenMany(Flux.fromIterable(roleCodes).concatMap(code -> insertRole(userId, code)))
