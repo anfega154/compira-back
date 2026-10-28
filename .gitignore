@@ -352,3 +352,6 @@ deployment/terraform/bootstrap/backend.tf
 
 # Versioned local Docker Compose template
 !deployment/.env.local.example
+
+# Python deployment verification helpers
+__pycache__/

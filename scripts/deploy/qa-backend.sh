@@ -35,14 +35,9 @@ printf 'Previous task: %s\nRequested task: %s\nImage: %s\n' "$previous" "$next" 
 aws ecs update-service --cluster "$ECS_CLUSTER" --service "$ECS_SERVICE" \
   --task-definition "$next" > /dev/null
 aws ecs wait services-stable --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE"
-aws ecs describe-services --cluster "$ECS_CLUSTER" --services "$ECS_SERVICE" > "$work/service.json"
-python3 - "$work/service.json" "$next" <<'PY'
-import json, sys
-s=json.load(open(sys.argv[1]))['services'][0]
-assert s['taskDefinition'] == sys.argv[2], 'Deployment rolled back to another task'
-assert s['desiredCount'] > 0 and s['runningCount'] == s['desiredCount'], 'No healthy running tasks'
-assert len(s['deployments']) == 1 and s['deployments'][0]['rolloutState'] == 'COMPLETED', 'Rollout incomplete'
-PY
+python3 scripts/deploy/verify_ecs_rollout.py --cluster "$ECS_CLUSTER" \
+  --service "$ECS_SERVICE" --task-definition "$next"
+
 curl --fail --silent --show-error --retry 8 --retry-all-errors --retry-delay 10 \
   --connect-timeout 10 --max-time 30 "$API_HEALTH_URL"
 echo 'QA backend rollout and public health check passed.'
