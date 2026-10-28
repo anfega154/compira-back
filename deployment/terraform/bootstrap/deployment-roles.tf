@@ -14,7 +14,8 @@ resource "aws_iam_role_policy" "backend_deploy" {
       { Effect = "Allow", Action = ["ecr:GetAuthorizationToken"], Resource = "*" },
       { Effect = "Allow", Action = ["ecr:BatchCheckLayerAvailability", "ecr:InitiateLayerUpload", "ecr:UploadLayerPart", "ecr:CompleteLayerUpload", "ecr:PutImage", "ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer", "ecr:DescribeImages"], Resource = "arn:aws:ecr:${var.aws_region}:${local.account}:repository/${local.prefix}-api" },
       { Effect = "Allow", Action = ["ecs:DescribeServices", "ecs:UpdateService"], Resource = "${local.ecs_prefix}:service/${local.prefix}-cluster/${local.prefix}-service" },
-      { Effect = "Allow", Action = ["ecs:DescribeTaskDefinition"], Resource = "${local.ecs_prefix}:task-definition/${local.prefix}-task:*" },
+      # DescribeTaskDefinition does not support resource-level permissions.
+      { Effect = "Allow", Action = ["ecs:DescribeTaskDefinition"], Resource = "*" },
       # RegisterTaskDefinition does not support resource-level permissions.
       { Effect = "Allow", Action = ["ecs:RegisterTaskDefinition"], Resource = "*" },
       { Effect = "Allow", Action = ["iam:PassRole"], Resource = ["arn:aws:iam::${local.account}:role/${local.prefix}-ecs-execution-role", "arn:aws:iam::${local.account}:role/${local.prefix}-ecs-task-role"], Condition = { StringEquals = { "iam:PassedToService" = "ecs-tasks.amazonaws.com" } } }
