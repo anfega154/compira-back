@@ -135,6 +135,38 @@ class ResourceServerConfigTest {
         client.post().uri(TeamHandler.MEMBERS, SecurityTestData.SUBJECT).exchange().expectStatus().isUnauthorized();
     }
 
+    private static final String TASK_PATH = "/api/v1/tasks/11111111-1111-1111-1111-111111111111";
+
+    @ParameterizedTest
+    @EnumSource(value = RoleCode.class, names = {"COORDINATOR", "COLLABORATOR"})
+    void allowsCoordinatorsAndCollaboratorsToAddObservations(RoleCode role) {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
+        client.post().uri(TASK_PATH + "/observations")
+                .headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isNoContent();
+    }
+
+    @Test
+    void rejectsAnonymousAndAdministratorObservationWrites() {
+        client.post().uri(TASK_PATH + "/observations").exchange().expectStatus().isUnauthorized();
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user("ADMINISTRATOR", UserStatus.ACTIVE)));
+        client.post().uri(TASK_PATH + "/observations")
+                .headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isForbidden();
+    }
+
+    @ParameterizedTest
+    @EnumSource(RoleCode.class)
+    void keepsStatusUpdatesExclusiveToCollaborators(RoleCode role) {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT))
+                .thenReturn(Mono.just(SecurityTestData.user(role.name(), UserStatus.ACTIVE)));
+        client.post().uri(TASK_PATH + "/status")
+                .headers(headers -> headers.setBearerAuth("valid-token"))
+                .exchange().expectStatus().isEqualTo(role == RoleCode.COLLABORATOR ? 204 : 403);
+    }
+
     private static final String MEMBERS_PATH = "/api/v1/teams/" + SecurityTestData.team().id() + "/members";
     private static final String ORGANIZATION_SETTINGS_PATH = "/api/v1/organization/settings";
 
@@ -326,6 +358,8 @@ class ResourceServerConfigTest {
                     .GET("/api/v1/organization/settings", request -> ServerResponse.ok().build())
                     .POST(co.com.compira.api.task.TaskRoute.API_V1 + co.com.compira.api.task.TaskRoute.TASKS_BASE,
                             request -> ServerResponse.noContent().build())
+                    .POST(TASK_PATH + "/observations", request -> ServerResponse.noContent().build())
+                    .POST(TASK_PATH + "/status", request -> ServerResponse.noContent().build())
                     .POST("/api/v1/auth/register", request -> ServerResponse.ok().build())
                     .DELETE("/api/v1/auth/users", request -> ServerResponse.ok().build())
                     .PUT("/api/v1/organization/settings", request -> ServerResponse.ok().build()).build();
