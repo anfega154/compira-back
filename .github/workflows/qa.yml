@@ -24,6 +24,8 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: gradle/actions/setup-gradle@v4
+      - name: Test deployment confirmation guards
+        run: python3 -m unittest discover -s scripts/deploy/tests -v
       - run: ./gradlew test jacocoMergedReport
       - name: Enforce merged JaCoCo coverage thresholds
         run: |
