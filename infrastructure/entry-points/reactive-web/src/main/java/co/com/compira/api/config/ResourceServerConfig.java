@@ -84,7 +84,9 @@ public class ResourceServerConfig {
                         .hasAnyAuthority(COORDINATOR, COLLABORATOR)
                         .pathMatchers(HttpMethod.POST, TASKS, TASKS + TaskRoute.ASSIGN, TASKS + TaskRoute.REASSIGN,
                                 TASKS + TaskRoute.CANCEL, TASKS + TaskRoute.APPROVE).hasAuthority(COORDINATOR)
-                        .pathMatchers(HttpMethod.POST, TASKS + TaskRoute.STATUS, TASKS + TaskRoute.OBSERVATIONS)
+                        .pathMatchers(HttpMethod.POST, TASKS + TaskRoute.OBSERVATIONS)
+                        .hasAnyAuthority(COORDINATOR, COLLABORATOR)
+                        .pathMatchers(HttpMethod.POST, TASKS + TaskRoute.STATUS)
                         .hasAuthority(COLLABORATOR)
                         .pathMatchers(TASKS + DESCENDANTS, TASKS).hasAnyAuthority(ADMINISTRATOR, COORDINATOR, COLLABORATOR)
                         .anyExchange().denyAll())
