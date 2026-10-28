@@ -10,14 +10,13 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: backend-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   quality:
     name: Tests, coverage and container build
     runs-on: ubuntu-latest
+    concurrency:
+      group: quality-${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -42,3 +41,53 @@ jobs:
           PYTHON
       - name: Validate the production container image
         run: docker build --file deployment/Dockerfile --tag compira-api:ci .
+
+  infrastructure:
+    name: Validate Terraform configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.13.5'
+      - run: terraform fmt -check -recursive deployment/terraform
+      - name: Validate each module without remote state or AWS credentials
+        run: |
+          for module in bootstrap cognito frontend service; do
+            terraform -chdir="deployment/terraform/$module" init -backend=false -input=false
+            terraform -chdir="deployment/terraform/$module" validate
+          done
+
+  deploy:
+    name: Deploy backend to AWS QA
+    needs: [quality, infrastructure]
+    if: github.ref == 'refs/heads/qa' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    environment: qa
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: backend-deploy-qa
+      cancel-in-progress: false
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY_URL: ${{ vars.ECR_REPOSITORY_URL }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+      ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+      API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
+      IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Refuse a superseded QA revision
+        run: |
+          test "$(git ls-remote origin refs/heads/qa | cut -f1)" = "$GITHUB_SHA"
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          allowed-account-ids: ${{ vars.AWS_ACCOUNT_ID }}
+      - uses: docker/setup-buildx-action@v3
+      - name: Push image and wait for a healthy ECS rollout
+        run: bash scripts/deploy/qa-backend.sh

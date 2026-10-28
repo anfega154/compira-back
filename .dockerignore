@@ -12,3 +12,9 @@ context
 .env.*
 *.log
 .DS_Store
+
+# Infrastructure state and local account configuration are not build inputs.
+deployment/terraform
+.aws
+**/*.tfvars
+**/backend.hcl
