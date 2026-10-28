@@ -9,3 +9,5 @@ output "terraform_lock_table" {
 output "github_actions_role_arn" {
   value = aws_iam_role.github_actions_qa.arn
 }
+
+output "frontend_deploy_role_arn" { value = aws_iam_role.frontend_deploy.arn }

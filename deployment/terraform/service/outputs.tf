@@ -3,7 +3,7 @@ output "alb_dns_name" {
 }
 
 output "api_gateway_url" {
-  value = aws_apigatewayv2_api.this.api_endpoint
+  value = "${aws_apigatewayv2_api.this.api_endpoint}${var.api_gateway_stage_name == "$default" ? "" : "/${var.api_gateway_stage_name}"}"
 }
 
 output "api_gateway_stage_name" {
@@ -27,4 +27,7 @@ output "nat_public_ip" {
 }
 
 output "aurora_endpoint" { value = aws_rds_cluster.aurora.endpoint }
-output "frontend_api_url" { value = aws_apigatewayv2_api.this.api_endpoint }
+output "frontend_api_url" {
+  value = "${aws_apigatewayv2_api.this.api_endpoint}${var.api_gateway_stage_name == "$default" ? "" : "/${var.api_gateway_stage_name}"}/api/v1"
+}
+output "task_definition_arn" { value = aws_ecs_task_definition.app.arn }

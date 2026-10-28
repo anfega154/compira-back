@@ -57,6 +57,11 @@ resource "aws_iam_role_policy" "cognito_sms_publish" {
 }
 
 resource "aws_cognito_user_pool" "this" {
+  lifecycle {
+    prevent_destroy = true
+  }
+
+  deletion_protection      = "ACTIVE"
   name                     = "${local.name_prefix}-user-pool"
   user_pool_tier           = var.user_pool_tier
   username_attributes      = ["email"]
