@@ -31,7 +31,9 @@ public class AuthRouterRest {
                             summary = "Registrar un usuario (solo administrador)",
                             responses = {
                                     @ApiResponse(responseCode = "201", description = "Usuario registrado", content = @Content(schema = @Schema(implementation = UserRegistrationResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida")
+                                    @ApiResponse(responseCode = "400", description = "Solicitud inválida"),
+                                    @ApiResponse(responseCode = "401", description = "Autenticación requerida"),
+                                    @ApiResponse(responseCode = "403", description = "Requiere rol Administrador")
                             }
                     )
             ),
@@ -42,9 +44,11 @@ public class AuthRouterRest {
                     method = RequestMethod.POST,
                     operation = @Operation(
                             summary = "Autenticar un usuario",
+                            description = "Al completar la autenticación, activa el perfil local pendiente y registra el ingreso. Las cuentas deshabilitadas no pueden iniciar sesión.",
                             responses = {
+                                    @ApiResponse(responseCode = "400", description = "Correo inválido: requiere dirección completa con dominio y extensión"),
                                     @ApiResponse(responseCode = "200", description = "Resultado de autenticación", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
-                                    @ApiResponse(responseCode = "401", description = "Autenticación fallida")
+                                    @ApiResponse(responseCode = "401", description = "Correo o contraseña incorrectos; no distingue cuentas inexistentes")
                             }
                     )
             ),
@@ -67,9 +71,11 @@ public class AuthRouterRest {
                     method = RequestMethod.POST,
                     operation = @Operation(
                             summary = "Responder un reto de autenticación (OTP o cambio de contraseña obligatorio)",
+                            description = "El perfil local pendiente se activa únicamente cuando no quedan retos y la autenticación se completa. Las cuentas deshabilitadas permanecen bloqueadas.",
                             responses = {
                                     @ApiResponse(responseCode = "200", description = "Resultado de autenticación", content = @Content(schema = @Schema(implementation = AuthenticationResponse.class))),
-                                    @ApiResponse(responseCode = "400", description = "Solicitud del reto inválida")
+                                    @ApiResponse(responseCode = "400", description = "Solicitud del reto inválida"),
+                                    @ApiResponse(responseCode = "401", description = "Autenticación fallida")
                             }
                     )
             ),
@@ -111,19 +117,6 @@ public class AuthRouterRest {
                                     @ApiResponse(responseCode = "204", description = "Contraseña actualizada")
                             }
                     )
-            ),
-            @RouterOperation(
-                    path = "/api/v1/auth/users",
-                    beanClass = AuthenticationHandler.class,
-                    beanMethod = "deleteUser",
-                    method = RequestMethod.DELETE,
-                    operation = @Operation(
-                            summary = "Eliminar un usuario",
-                            responses = {
-                                    @ApiResponse(responseCode = "204", description = "Usuario eliminado"),
-                                    @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
-                            }
-                    )
             )
     })
     @Bean
@@ -137,8 +130,7 @@ public class AuthRouterRest {
                                 .POST(AuthenticationRoute.LOGIN_CHALLENGE, authenticationHandler::respondAuthenticationChallenge)
                                 .POST(AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                                 .POST(AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
-                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
-                                .DELETE(AuthenticationRoute.USERS, authenticationHandler::deleteUser)))
+                                .POST(AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)))
                 .build();
     }
 }

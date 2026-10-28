@@ -7,6 +7,7 @@ public final class CognitoAuthenticationConstants {
     public static final String GIVEN_NAME_ATTRIBUTE = "given_name";
     public static final String FAMILY_NAME_ATTRIBUTE = "family_name";
     public static final String PHONE_NUMBER_ATTRIBUTE = "phone_number";
+    public static final String PHONE_NUMBER_VERIFIED_ATTRIBUTE = "phone_number_verified";
     public static final String SUB_ATTRIBUTE = "sub";
     public static final String USERNAME_PARAMETER = "USERNAME";
     public static final String PASSWORD_PARAMETER = "PASSWORD";

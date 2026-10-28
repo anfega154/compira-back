@@ -1,7 +1,6 @@
 package co.com.compira.api.auth;
 
 import co.com.compira.api.auth.dto.ConfirmPasswordRecoveryRequest;
-import co.com.compira.api.auth.dto.DeleteUserRequest;
 import co.com.compira.api.auth.dto.LoginRequest;
 import co.com.compira.api.auth.dto.LogoutRequest;
 import co.com.compira.api.auth.dto.RegisterUserRequest;
@@ -46,6 +45,24 @@ public final class AuthenticationApiTestData {
         return new LoginRequest("john.doe@compira.co", "Password123!");
     }
 
+    public static LoginRequest loginRequest(String email) {
+        return new LoginRequest(email, "Password123!");
+    }
+
+    public static co.com.compira.model.common.error.CompiraException invalidCredentials() {
+        return new co.com.compira.model.common.error.CompiraException(
+                co.com.compira.model.auth.AuthenticationErrorCode.INVALID_CREDENTIALS,
+                co.com.compira.model.auth.AuthenticationMessage.INVALID_CREDENTIALS,
+                co.com.compira.model.common.error.ErrorCategory.UNAUTHORIZED);
+    }
+
+    public static co.com.compira.model.common.error.CompiraException invalidPassword() {
+        return new co.com.compira.model.common.error.CompiraException(
+                co.com.compira.model.auth.AuthenticationErrorCode.INVALID_PASSWORD,
+                co.com.compira.model.auth.AuthenticationMessage.INVALID_PASSWORD,
+                co.com.compira.model.common.error.ErrorCategory.BAD_REQUEST);
+    }
+
     public static LogoutRequest logoutRequest() {
         return new LogoutRequest("access-token");
     }
@@ -76,10 +93,6 @@ public final class AuthenticationApiTestData {
 
     public static ConfirmPasswordRecoveryRequest confirmPasswordRecoveryRequest() {
         return new ConfirmPasswordRecoveryRequest("john.doe@compira.co", "123456", "NewPassword123!");
-    }
-
-    public static DeleteUserRequest deleteUserRequest() {
-        return new DeleteUserRequest("john.doe@compira.co");
     }
 
     public static ResendConfirmationCodeRequest resendConfirmationCodeRequest() {

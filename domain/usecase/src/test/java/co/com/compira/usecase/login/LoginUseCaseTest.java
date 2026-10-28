@@ -1,5 +1,7 @@
 package co.com.compira.usecase.login;
 
+import co.com.compira.model.auth.UserStatus;
+
 import co.com.compira.model.auth.gateways.ApplicationUserRepositoryGateway;
 import co.com.compira.model.auth.gateways.AuthenticationGateway;
 import co.com.compira.usecase.auth.AuthenticationTestData;
@@ -8,7 +10,7 @@ import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class LoginUseCaseTest {
@@ -17,14 +19,17 @@ class LoginUseCaseTest {
     private final LoginUseCase useCase = new LoginUseCase(authenticationGateway, applicationUserRepositoryGateway);
 
     @Test
-    void shouldUpdateLastLoginWhenAuthenticationSucceeds() {
+    void shouldCompleteLoginWhenAuthenticationSucceeds() {
         when(authenticationGateway.login(AuthenticationTestData.loginCommand()))
                 .thenReturn(Mono.just(AuthenticationTestData.authenticatedResult()));
-        when(applicationUserRepositoryGateway.updateLastLogin("john.doe@compira.co"))
+        when(applicationUserRepositoryGateway.completeLogin("john.doe@compira.co"))
                 .thenReturn(Mono.just(AuthenticationTestData.activeApplicationUser()));
 
         StepVerifier.create(useCase.execute(AuthenticationTestData.loginCommand()))
-                .assertNext(result -> org.junit.jupiter.api.Assertions.assertEquals("john.doe@compira.co", result.user().user().email()))
+                .assertNext(result -> {
+                    org.junit.jupiter.api.Assertions.assertEquals("john.doe@compira.co", result.user().user().email());
+                    org.junit.jupiter.api.Assertions.assertEquals(UserStatus.ACTIVE, result.user().status());
+                })
                 .verifyComplete();
     }
 
@@ -36,5 +41,25 @@ class LoginUseCaseTest {
         StepVerifier.create(useCase.execute(AuthenticationTestData.loginCommand()))
                 .expectNext(AuthenticationTestData.challengeRequiredResult())
                 .verifyComplete();
+        verifyNoInteractions(applicationUserRepositoryGateway);
+    }
+
+    @Test
+    void shouldNotCompleteLoginWhenIdentityProviderRejectsCredentials() {
+        when(authenticationGateway.login(AuthenticationTestData.loginCommand()))
+                .thenReturn(Mono.error(new IllegalStateException()));
+        StepVerifier.create(useCase.execute(AuthenticationTestData.loginCommand()))
+                .expectError(IllegalStateException.class).verify();
+        verifyNoInteractions(applicationUserRepositoryGateway);
+    }
+
+    @Test
+    void shouldNotReturnTokensWhenLocalLoginCompletionFails() {
+        when(authenticationGateway.login(AuthenticationTestData.loginCommand()))
+                .thenReturn(Mono.just(AuthenticationTestData.authenticatedResult()));
+        when(applicationUserRepositoryGateway.completeLogin(AuthenticationTestData.loginCommand().username()))
+                .thenReturn(Mono.error(new IllegalStateException()));
+        StepVerifier.create(useCase.execute(AuthenticationTestData.loginCommand()))
+                .expectError(IllegalStateException.class).verify();
     }
 }

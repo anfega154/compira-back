@@ -18,6 +18,7 @@ public final class AuthenticationErrorCode {
     public static final String TOO_MANY_REQUESTS = "AUTH_013";
     public static final String INVALID_REQUEST = "AUTH_014";
     public static final String IDENTITY_PROVIDER_CONFIGURATION_ERROR = "AUTH_015";
+    public static final String UNVERIFIED_RECOVERY_CONTACT = "AUTH_016";
 
     private AuthenticationErrorCode() {
     }

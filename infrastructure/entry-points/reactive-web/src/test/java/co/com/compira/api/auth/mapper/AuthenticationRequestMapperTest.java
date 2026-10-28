@@ -44,13 +44,6 @@ class AuthenticationRequestMapperTest {
     }
 
     @Test
-    void shouldMapDeleteUserRequestToCommand() {
-        var command = mapper.toCommand(AuthenticationApiTestData.deleteUserRequest());
-
-        assertEquals("john.doe@compira.co", command.email());
-    }
-
-    @Test
     void shouldMapLogoutRequestToCommand() {
         var command = mapper.toCommand(AuthenticationApiTestData.logoutRequest());
 

@@ -349,3 +349,6 @@ deployment/terraform/bootstrap/backend.tf
 # Terraform local backend configuration and generated execution plans
 **/backend.hcl
 *.tfplan
+
+# Versioned local Docker Compose template
+!deployment/.env.local.example

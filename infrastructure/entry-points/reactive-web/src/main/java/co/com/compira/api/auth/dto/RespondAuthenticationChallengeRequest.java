@@ -1,6 +1,7 @@
 package co.com.compira.api.auth.dto;
 
 import co.com.compira.api.auth.AuthenticationValidationMessage;
+import co.com.compira.api.auth.AuthenticationValidationPattern;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -9,7 +10,7 @@ import jakarta.validation.constraints.Size;
 @SuppressWarnings("java:S2068")
 public record RespondAuthenticationChallengeRequest(
         @NotBlank(message = AuthenticationValidationMessage.EMAIL_REQUIRED)
-        @Email(message = AuthenticationValidationMessage.EMAIL_INVALID)
+        @Email(regexp = AuthenticationValidationPattern.EMAIL, message = AuthenticationValidationMessage.EMAIL_INVALID)
         String email,
         @NotBlank(message = AuthenticationValidationMessage.SESSION_REQUIRED)
         String session,
@@ -20,6 +21,6 @@ public record RespondAuthenticationChallengeRequest(
         String code,
         @Pattern(regexp = "^(EMAIL|SMS)?$", message = AuthenticationValidationMessage.MFA_CHANNEL_INVALID)
         String mfaChannel,
-        @Size(min = 8, max = 128, message = AuthenticationValidationMessage.NEW_PASSWORD_LENGTH)
+        @Size(min = 10, max = 128, message = AuthenticationValidationMessage.NEW_PASSWORD_LENGTH)
         String newPassword) {
 }

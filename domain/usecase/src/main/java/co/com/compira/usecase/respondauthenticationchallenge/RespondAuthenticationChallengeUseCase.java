@@ -20,7 +20,7 @@ public class RespondAuthenticationChallengeUseCase {
     public Mono<AuthenticationResult> execute(RespondAuthenticationChallengeCommand command) {
         return authenticationGateway.respondToChallenge(command)
                 .flatMap(result -> AuthenticationStatus.AUTHENTICATED.equals(result.status())
-                        ? applicationUserRepositoryGateway.updateLastLogin(command.username())
+                        ? applicationUserRepositoryGateway.completeLogin(command.username())
                         .map(result::withUser)
                         : Mono.just(result));
     }

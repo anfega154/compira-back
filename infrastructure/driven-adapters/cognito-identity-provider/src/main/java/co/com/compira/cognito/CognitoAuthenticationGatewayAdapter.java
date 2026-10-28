@@ -28,6 +28,9 @@ import reactor.core.publisher.Mono;
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderAsyncClient;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminCreateUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDeleteUserRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminDisableUserRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminEnableUserRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminSetUserPasswordRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminSetUserMfaPreferenceRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.CodeDeliveryDetailsType;
@@ -64,6 +67,9 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
     private static final String OPERATION_ADMIN_CREATE_USER = "cognito-admin-create-user";
     private static final String OPERATION_SET_MFA_PREFERENCE = "cognito-admin-set-mfa-preference";
     private static final String OPERATION_DELETE_USER = "cognito-admin-delete-user";
+    private static final String OPERATION_DISABLE_USER = "cognito-admin-disable-user";
+    private static final String OPERATION_ENABLE_USER = "cognito-admin-enable-user";
+    private static final String OPERATION_RESET_PASSWORD = "cognito-admin-set-user-password";
     private static final String OPERATION_LOGIN = "cognito-initiate-auth";
     private static final String OPERATION_RESPOND_CHALLENGE = "cognito-respond-to-auth-challenge";
     private static final String OPERATION_START_PASSWORD_RECOVERY = "cognito-forgot-password";
@@ -126,6 +132,53 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_DELETE_USER, maskedEmail, properties.userPoolId()))
                 .then()
                 .onErrorMap(error -> mapException(OPERATION_DELETE_USER, maskedEmail, error));
+    }
+
+    @Override
+    public Mono<Void> disableUser(String username) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(username);
+        AdminDisableUserRequest request = AdminDisableUserRequest.builder()
+                .userPoolId(properties.userPoolId())
+                .username(username)
+                .build();
+
+        LOGGER.info(LOG_OPERATION_START, OPERATION_DISABLE_USER, maskedEmail, properties.userPoolId());
+        return Mono.fromFuture(cognitoIdentityProviderAsyncClient.adminDisableUser(request))
+                .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_DISABLE_USER, maskedEmail, properties.userPoolId()))
+                .then()
+                .onErrorMap(error -> mapException(OPERATION_DISABLE_USER, maskedEmail, error));
+    }
+
+    @Override
+    public Mono<Void> enableUser(String username) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(username);
+        AdminEnableUserRequest request = AdminEnableUserRequest.builder()
+                .userPoolId(properties.userPoolId())
+                .username(username)
+                .build();
+
+        LOGGER.info(LOG_OPERATION_START, OPERATION_ENABLE_USER, maskedEmail, properties.userPoolId());
+        return Mono.fromFuture(cognitoIdentityProviderAsyncClient.adminEnableUser(request))
+                .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_ENABLE_USER, maskedEmail, properties.userPoolId()))
+                .then()
+                .onErrorMap(error -> mapException(OPERATION_ENABLE_USER, maskedEmail, error));
+    }
+
+    @Override
+    public Mono<Void> resetUserPassword(String username, String temporaryPassword) {
+        String maskedEmail = AuthenticationLogSanitizer.maskEmail(username);
+        AdminSetUserPasswordRequest request = AdminSetUserPasswordRequest.builder()
+                .userPoolId(properties.userPoolId())
+                .username(username)
+                .password(temporaryPassword)
+                .permanent(false)
+                .build();
+
+        LOGGER.info(LOG_OPERATION_START, OPERATION_RESET_PASSWORD, maskedEmail, properties.userPoolId());
+        return Mono.fromFuture(cognitoIdentityProviderAsyncClient.adminSetUserPassword(request))
+                .doOnSuccess(response -> LOGGER.info(LOG_OPERATION_SUCCESS, OPERATION_RESET_PASSWORD, maskedEmail, properties.userPoolId()))
+                .then()
+                .onErrorMap(error -> mapException(OPERATION_RESET_PASSWORD, maskedEmail, error));
     }
 
     @Override
@@ -246,7 +299,13 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                 AttributeType.builder().name(CognitoAuthenticationConstants.EMAIL_VERIFIED_ATTRIBUTE).value("true").build(),
                 AttributeType.builder().name(CognitoAuthenticationConstants.GIVEN_NAME_ATTRIBUTE).value(command.firstName()).build(),
                 AttributeType.builder().name(CognitoAuthenticationConstants.FAMILY_NAME_ATTRIBUTE).value(command.lastName()).build(),
-                AttributeType.builder().name(CognitoAuthenticationConstants.PHONE_NUMBER_ATTRIBUTE).value(command.phoneNumber()).build());
+                AttributeType.builder().name(CognitoAuthenticationConstants.PHONE_NUMBER_ATTRIBUTE).value(command.phoneNumber()).build(),
+                // El teléfono se marca como verificado para habilitarlo como canal de
+                // recuperación de contraseña (ForgotPassword por SMS). La MFA de inicio de
+                // sesión se mantiene por email; con MFA por email, Cognito descalifica el
+                // correo como canal de recuperación, por lo que el teléfono verificado es el
+                // único mecanismo válido de recuperación.
+                AttributeType.builder().name(CognitoAuthenticationConstants.PHONE_NUMBER_VERIFIED_ATTRIBUTE).value("true").build());
     }
 
     private String extractSubFromAttributes(List<AttributeType> attributes) {
@@ -327,10 +386,14 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
         if (cause instanceof CompiraException) {
             return cause;
         }
+        if (OPERATION_LOGIN.equals(operation) && (cause instanceof UserNotFoundException || cause instanceof NotAuthorizedException)) {
+            return new CompiraException(AuthenticationErrorCode.INVALID_CREDENTIALS,
+                    AuthenticationMessage.INVALID_CREDENTIALS, ErrorCategory.UNAUTHORIZED, cause);
+        }
         CompiraException mappedException = cause instanceof UsernameExistsException
                 ? new CompiraException(AuthenticationErrorCode.USER_ALREADY_EXISTS, AuthenticationMessage.USER_ALREADY_EXISTS, ErrorCategory.CONFLICT)
                 : cause instanceof InvalidPasswordException
-                ? new CompiraException(AuthenticationErrorCode.INVALID_PASSWORD, AuthenticationMessage.INVALID_PASSWORD, ErrorCategory.BAD_REQUEST)
+                ? new CompiraException(AuthenticationErrorCode.INVALID_PASSWORD, AuthenticationMessage.INVALID_PASSWORD, ErrorCategory.BAD_REQUEST, cause)
                 : cause instanceof CodeMismatchException
                 ? new CompiraException(AuthenticationErrorCode.INVALID_CONFIRMATION_CODE, AuthenticationMessage.INVALID_CONFIRMATION_CODE, ErrorCategory.BAD_REQUEST)
                 : cause instanceof ExpiredCodeException
@@ -374,6 +437,14 @@ public class CognitoAuthenticationGatewayAdapter implements AuthenticationGatewa
                     AuthenticationErrorCode.IDENTITY_PROVIDER_CONFIGURATION_ERROR,
                     AuthenticationMessage.IDENTITY_PROVIDER_CONFIGURATION_ERROR,
                     ErrorCategory.INTERNAL_SERVER_ERROR);
+        }
+
+        if (normalizedMessage.contains("no registered/verified email")
+                || normalizedMessage.contains("verified email or phone")) {
+            return new CompiraException(
+                    AuthenticationErrorCode.UNVERIFIED_RECOVERY_CONTACT,
+                    AuthenticationMessage.UNVERIFIED_RECOVERY_CONTACT,
+                    ErrorCategory.BAD_REQUEST);
         }
 
         return new CompiraException(

@@ -5,7 +5,8 @@ data "aws_availability_zones" "available" {
 data "aws_caller_identity" "current" {}
 
 locals {
-  name_prefix = "${var.project}-${var.environment}"
+  name_prefix     = "${var.project}-${var.environment}"
+  allowed_origins = distinct([for origin in split(",", var.cors_allowed_origins) : trimspace(origin) if trimspace(origin) != ""])
   tags = merge(
     {
       project     = var.project
@@ -192,6 +193,7 @@ resource "aws_rds_cluster" "aurora" {
   db_subnet_group_name        = aws_db_subnet_group.aurora.name
   vpc_security_group_ids      = [aws_security_group.aurora.id]
   storage_encrypted           = true
+  deletion_protection         = var.db_deletion_protection
   backup_retention_period     = 7
   preferred_backup_window     = "03:00-04:00"
   skip_final_snapshot         = false
@@ -227,7 +229,8 @@ resource "aws_lb" "this" {
     enabled = true
   }
 
-  tags = local.tags
+  tags       = local.tags
+  depends_on = [aws_s3_bucket_policy.alb_access_logs]
 }
 
 resource "aws_lb_target_group" "this" {
@@ -326,6 +329,7 @@ resource "aws_cloudwatch_log_group" "api_gateway" {
 resource "aws_ecr_repository" "app" {
   name                 = "${local.name_prefix}-api"
   image_tag_mutability = "IMMUTABLE"
+  force_delete         = false
 
   image_scanning_configuration {
     scan_on_push = true
@@ -354,10 +358,7 @@ resource "aws_apigatewayv2_api" "this" {
   description   = "Public HTTP API for Compira routed privately to ECS through an internal ALB."
 
   cors_configuration {
-    allow_origins = distinct(concat(
-      ["http://localhost:5173"],
-      compact(split(",", var.cors_allowed_origins))
-    ))
+    allow_origins = local.allowed_origins
     allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     allow_headers = ["Authorization", "Content-Type", "X-Requested-With"]
     max_age       = 300
@@ -375,6 +376,9 @@ resource "aws_apigatewayv2_integration" "alb" {
   connection_id          = aws_apigatewayv2_vpc_link.this.id
   payload_format_version = "1.0"
   timeout_milliseconds   = 30000
+  request_parameters = {
+    "overwrite:path" = "$request.path"
+  }
 }
 
 resource "aws_apigatewayv2_route" "default" {
@@ -387,6 +391,11 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.this.id
   name        = var.api_gateway_stage_name
   auto_deploy = true
+
+  default_route_settings {
+    throttling_burst_limit = var.api_throttling_burst_limit
+    throttling_rate_limit  = var.api_throttling_rate_limit
+  }
 
   access_log_settings {
     destination_arn = aws_cloudwatch_log_group.api_gateway.arn
@@ -492,10 +501,7 @@ resource "aws_ecs_task_definition" "app" {
         { name = "COGNITO_REGION", value = var.cognito_region },
         { name = "COGNITO_USER_POOL_ID", value = var.cognito_user_pool_id },
         { name = "COGNITO_CLIENT_ID", value = var.cognito_client_id },
-        { name = "CORS_ALLOWED_ORIGINS", value = join(",", distinct(concat(
-          ["http://localhost:5173"],
-          compact(split(",", var.cors_allowed_origins))
-        ))) }
+        { name = "CORS_ALLOWED_ORIGINS", value = join(",", local.allowed_origins) }
       ]
       logConfiguration = {
         logDriver = "awslogs"
@@ -512,12 +518,24 @@ resource "aws_ecs_task_definition" "app" {
 }
 
 resource "aws_ecs_service" "app" {
-  name                  = "${local.name_prefix}-service"
-  cluster               = aws_ecs_cluster.this.id
-  task_definition       = aws_ecs_task_definition.app.arn
-  desired_count         = var.desired_count
-  launch_type           = "FARGATE"
-  wait_for_steady_state = true
+  name                              = "${local.name_prefix}-service"
+  cluster                           = aws_ecs_cluster.this.id
+  task_definition                   = aws_ecs_task_definition.app.arn
+  desired_count                     = var.desired_count
+  launch_type                       = "FARGATE"
+  wait_for_steady_state             = true
+  health_check_grace_period_seconds = 180
+
+  deployment_circuit_breaker {
+    enable   = true
+    rollback = true
+  }
+
+  # Application revisions belong to CD. Infrastructure configuration changes
+  # require an explicit rollout of the Terraform task definition (see runbook).
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
 
   network_configuration {
     assign_public_ip = false
@@ -531,7 +549,30 @@ resource "aws_ecs_service" "app" {
     container_port   = var.app_port
   }
 
-  depends_on = [aws_lb_listener.http]
+  depends_on = [
+    aws_lb_listener.http,
+    aws_iam_role_policy_attachment.ecs_task_execution,
+    aws_iam_role_policy_attachment.ecs_task_execution_secrets,
+    aws_iam_role_policy.ecs_cognito,
+    aws_rds_cluster_instance.aurora
+  ]
 
   tags = local.tags
+}
+
+resource "aws_iam_role_policy" "ecs_cognito" {
+  name = "${local.name_prefix}-cognito-runtime"
+  role = aws_iam_role.ecs_task_role.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "cognito-idp:AdminCreateUser", "cognito-idp:AdminDeleteUser",
+        "cognito-idp:AdminDisableUser", "cognito-idp:AdminEnableUser",
+        "cognito-idp:AdminSetUserPassword", "cognito-idp:AdminSetUserMFAPreference"
+      ]
+      Resource = "arn:aws:cognito-idp:${var.cognito_region}:${data.aws_caller_identity.current.account_id}:userpool/${var.cognito_user_pool_id}"
+    }]
+  })
 }

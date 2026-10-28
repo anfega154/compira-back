@@ -1,0 +1,91 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-table-tasks
+      author: compira
+      changes:
+        - createTable:
+            tableName: tasks
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  defaultValueComputed: uuid_generate_v4()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: title
+                  type: VARCHAR(150)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(2000)
+              - column:
+                  name: due_date
+                  type: TIMESTAMPTZ
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: responsible_user_id
+                  type: UUID
+              - column:
+                  name: created_by_user_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: tasks
+            baseColumnNames: responsible_user_id
+            constraintName: fk_tasks_responsible_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: SET NULL
+        - addForeignKeyConstraint:
+            baseTableName: tasks
+            baseColumnNames: created_by_user_id
+            constraintName: fk_tasks_created_by_user
+            referencedTableName: users
+            referencedColumnNames: id
+            onDelete: RESTRICT
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_responsible
+            columns:
+              - column:
+                  name: responsible_user_id
+        - createIndex:
+            tableName: tasks
+            indexName: idx_tasks_created_by
+            columns:
+              - column:
+                  name: created_by_user_id
+        - sql:
+            dbms: postgresql
+            splitStatements: true
+            sql: |
+              ALTER TABLE tasks
+              ADD CONSTRAINT ck_tasks_status
+              CHECK (status IN ('PENDING', 'IN_PROGRESS', 'DELAYED', 'COMPLETED', 'CLOSED', 'CANCELLED'));
+
+              DROP TRIGGER IF EXISTS trg_tasks_set_updated_at ON tasks;
+              CREATE TRIGGER trg_tasks_set_updated_at
+              BEFORE UPDATE ON tasks
+              FOR EACH ROW
+              EXECUTE FUNCTION set_updated_at();

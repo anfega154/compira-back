@@ -5,7 +5,6 @@ import co.com.compira.api.auth.dto.RespondAuthenticationChallengeRequest;
 import co.com.compira.api.auth.mapper.AuthenticationRequestMapper;
 import co.com.compira.api.auth.mapper.AuthenticationResponseMapper;
 import co.com.compira.usecase.confirmpasswordrecovery.ConfirmPasswordRecoveryUseCase;
-import co.com.compira.usecase.deleteuser.DeleteUserUseCase;
 import co.com.compira.usecase.login.LoginUseCase;
 import co.com.compira.usecase.logout.LogoutUseCase;
 import co.com.compira.usecase.registeruser.RegisterUserUseCase;
@@ -15,7 +14,9 @@ import co.com.compira.usecase.startpasswordrecovery.StartPasswordRecoveryUseCase
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpMethod;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import static org.mockito.Mockito.verifyNoInteractions;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.server.RouterFunctions;
@@ -32,7 +33,6 @@ class AuthenticationHandlerTest {
     private final RespondAuthenticationChallengeUseCase respondAuthenticationChallengeUseCase = mock(RespondAuthenticationChallengeUseCase.class);
     private final StartPasswordRecoveryUseCase startPasswordRecoveryUseCase = mock(StartPasswordRecoveryUseCase.class);
     private final ConfirmPasswordRecoveryUseCase confirmPasswordRecoveryUseCase = mock(ConfirmPasswordRecoveryUseCase.class);
-    private final DeleteUserUseCase deleteUserUseCase = mock(DeleteUserUseCase.class);
     private final ResendConfirmationCodeUseCase resendConfirmationCodeUseCase = mock(ResendConfirmationCodeUseCase.class);
     private WebTestClient webTestClient;
 
@@ -45,7 +45,6 @@ class AuthenticationHandlerTest {
                 respondAuthenticationChallengeUseCase,
                 startPasswordRecoveryUseCase,
                 confirmPasswordRecoveryUseCase,
-                deleteUserUseCase,
                 resendConfirmationCodeUseCase,
                 new AuthenticationRequestValidator(Validation.buildDefaultValidatorFactory().getValidator()),
                 new AuthenticationRequestMapper(),
@@ -60,7 +59,6 @@ class AuthenticationHandlerTest {
                         .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.RESEND_CONFIRMATION_CODE, authenticationHandler::resendConfirmationCode)
                         .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.PASSWORD_RECOVERY, authenticationHandler::startPasswordRecovery)
                         .POST(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION, authenticationHandler::confirmPasswordRecovery)
-                        .DELETE(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.USERS, authenticationHandler::deleteUser)
                         .build())
                 .build();
     }
@@ -92,6 +90,47 @@ class AuthenticationHandlerTest {
                 .expectBody()
                 .jsonPath("$.status").isEqualTo("AUTHENTICATED")
                 .jsonPath("$.tokens.accessToken").isEqualTo("access-token");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"user", "user@", "@gmail.com", "user@gmail", "user.com", "user@@gmail.com", "user@-gmail.com", "user@gmail..com"})
+    void rejectsIncompleteLoginEmailBeforeAuthentication(String email) {
+        webTestClient.post().uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(AuthenticationApiTestData.loginRequest(email))
+                .exchange().expectStatus().isBadRequest().expectBody()
+                .jsonPath("$.code").isEqualTo("AUTH_014")
+                .jsonPath("$.message").isEqualTo(AuthenticationValidationMessage.EMAIL_INVALID);
+        verifyNoInteractions(loginUseCase);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"user@gmail.com", "user@hotmail.com", "user.name@company.com", "user.name+test@gmail.com"})
+    void acceptsStandardLoginEmail(String email) {
+        when(loginUseCase.execute(any())).thenReturn(Mono.just(AuthenticationApiTestData.authenticatedResult()));
+        webTestClient.post().uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(AuthenticationApiTestData.loginRequest(email))
+                .exchange().expectStatus().isOk();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"registered@compira.co", "missing@compira.co"})
+    void returnsGenericUnauthorizedLoginResponse(String email) {
+        when(loginUseCase.execute(any())).thenReturn(Mono.error(AuthenticationApiTestData.invalidCredentials()));
+        webTestClient.post().uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.LOGIN)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(AuthenticationApiTestData.loginRequest(email))
+                .exchange().expectStatus().isUnauthorized().expectBody()
+                .jsonPath("$.code").isEqualTo("AUTH_005")
+                .jsonPath("$.message").isEqualTo("Correo o contraseña incorrectos.");
+    }
+
+    @Test
+    void returnsTechnologyAgnosticPasswordPolicyError() {
+        when(confirmPasswordRecoveryUseCase.execute(any())).thenReturn(Mono.error(AuthenticationApiTestData.invalidPassword()));
+        webTestClient.post().uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION)
+                .contentType(MediaType.APPLICATION_JSON).bodyValue(AuthenticationApiTestData.confirmPasswordRecoveryRequest())
+                .exchange().expectStatus().isBadRequest().expectBody()
+                .jsonPath("$.code").isEqualTo("AUTH_002")
+                .jsonPath("$.message").isEqualTo("La contraseña no cumple con la política de seguridad de Compira.");
     }
 
     @Test
@@ -142,18 +181,6 @@ class AuthenticationHandlerTest {
                 .uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.PASSWORD_RECOVERY_CONFIRMATION)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(AuthenticationApiTestData.confirmPasswordRecoveryRequest())
-                .exchange()
-                .expectStatus().isNoContent();
-    }
-
-    @Test
-    void shouldDeleteUser() {
-        when(deleteUserUseCase.execute(any())).thenReturn(Mono.empty());
-
-        webTestClient.method(HttpMethod.DELETE)
-                .uri(AuthenticationRoute.API_V1 + AuthenticationRoute.AUTH_BASE + AuthenticationRoute.USERS)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(AuthenticationApiTestData.deleteUserRequest())
                 .exchange()
                 .expectStatus().isNoContent();
     }

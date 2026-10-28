@@ -18,13 +18,19 @@ variable "tags" {
   type        = map(string)
   description = "Tags applied to bootstrap resources."
   default = {
-    project     = "franquicias"
+    project     = "compira"
     managed-by  = "terraform"
-    environment = "shared"
+    environment = "qa"
   }
 }
 
 variable "github_repositories" {
   type        = set(string)
-  description = "Repositories allowed to assume the QA deployment role from branch qa."
+  description = "Repositories allowed to assume deployment roles through the protected GitHub qa environment."
+}
+
+variable "frontend_distribution_id" {
+  type        = string
+  description = "CloudFront distribution permitted for frontend CD. Set the exact ID after first apply."
+  default     = "*"
 }

@@ -28,11 +28,9 @@ data "aws_iam_policy_document" "github_actions_assume" {
       variable = "token.actions.githubusercontent.com:sub"
       values = flatten([
         for repository in var.github_repositories : [
-          "repo:${repository}:ref:refs/heads/qa",
           "repo:${repository}:environment:qa",
-          "repo:${split("/", repository)[0]}@*/${split("/", repository)[1]}@*:ref:refs/heads/qa",
           "repo:${split("/", repository)[0]}@*/${split("/", repository)[1]}@*:environment:qa"
-        ]
+        ] if endswith(repository, "/compira-back")
       ])
     }
   }
@@ -42,10 +40,4 @@ resource "aws_iam_role" "github_actions_qa" {
   name               = "${var.tags.project}-${var.tags.environment}-github-actions"
   assume_role_policy = data.aws_iam_policy_document.github_actions_assume.json
   tags               = var.tags
-}
-
-# Initial bootstrap policy. Replace with a least-privilege policy after the QA stack is stable.
-resource "aws_iam_role_policy_attachment" "github_actions_qa" {
-  role       = aws_iam_role.github_actions_qa.name
-  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
