@@ -15,6 +15,7 @@ import org.springframework.transaction.reactive.TransactionalOperator;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
 
 import java.util.List;
@@ -22,7 +23,9 @@ import java.util.List;
 import static co.com.compira.r2dbc.NotificationPersistenceTestData.COLLABORATOR;
 import static co.com.compira.r2dbc.NotificationPersistenceTestData.COORDINATOR;
 import static co.com.compira.r2dbc.NotificationPersistenceTestData.FIXTURES;
+import static co.com.compira.r2dbc.NotificationPersistenceTestData.TEAM;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @Testcontainers
@@ -77,6 +80,42 @@ class UserDirectoryPersistenceTest {
     }
 
     @Test
+    void listsUserWithoutTeamWithEmptyTeamFields() {
+        StepVerifier.create(users.findByEmail("coordinator@compira.co"))
+                .assertNext(user -> {
+                    assertNull(user.teamId());
+                    assertNull(user.teamName());
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void listsCollaboratorOnceWhenItBelongsToSeveralTeams() {
+        StepVerifier.create(addCollaboratorToSecondTeam().thenMany(users.findAll()).collectList())
+                .assertNext(list -> {
+                    assertEquals(3, list.size());
+                    var collaborators = list.stream().filter(u -> u.email().equals("collaborator@compira.co")).toList();
+                    assertEquals(1, collaborators.size());
+                    assertEquals(TEAM, collaborators.get(0).teamId());
+                    assertEquals("Operaciones, Soporte", collaborators.get(0).teamName());
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void findsAndUpdatesCollaboratorThatBelongsToSeveralTeams() {
+        StepVerifier.create(addCollaboratorToSecondTeam().then(users.findByEmail("collaborator@compira.co")))
+                .assertNext(user -> assertEquals("Operaciones, Soporte", user.teamName()))
+                .verifyComplete();
+        StepVerifier.create(users.replaceRoles("collaborator@compira.co", List.of("COORDINATOR", "COLLABORATOR")))
+                .assertNext(user -> assertEquals(List.of("COLLABORATOR", "COORDINATOR"), user.roles()))
+                .verifyComplete();
+        StepVerifier.create(users.setStatus("collaborator@compira.co", false))
+                .assertNext(user -> assertEquals("DISABLED", user.status()))
+                .verifyComplete();
+    }
+
+    @Test
     void findsUserByEmail() {
         StepVerifier.create(users.findByEmail("coordinator@compira.co"))
                 .assertNext(user -> assertEquals("coordinator@compira.co", user.email()))
@@ -110,5 +149,14 @@ class UserDirectoryPersistenceTest {
         StepVerifier.create(directory.findByIds(List.of()).collectList())
                 .assertNext(found -> assertEquals(0, found.size()))
                 .verifyComplete();
+    }
+
+    private Mono<Void> addCollaboratorToSecondTeam() {
+        return database.sql("""
+                        INSERT INTO teams (id, name, coordinator_user_id) VALUES
+                          ('77777777-7777-7777-7777-777777777777', 'Soporte', '22222222-2222-2222-2222-222222222222');
+                        INSERT INTO team_members (user_id, team_id) VALUES
+                          ('33333333-3333-3333-3333-333333333333', '77777777-7777-7777-7777-777777777777');
+                        """).then();
     }
 }
