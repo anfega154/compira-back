@@ -25,3 +25,5 @@ databaseChangeLog:
       file: db/changelog/alter_team_members_multi_team.yaml
   - include:
       file: db/changelog/create_insert_user_default.yaml
+  - include:
+      file: db/changelog/add_coordinator_notification_types.yaml

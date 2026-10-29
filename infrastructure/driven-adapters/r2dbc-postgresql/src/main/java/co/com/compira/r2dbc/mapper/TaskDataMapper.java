@@ -36,7 +36,9 @@ public class TaskDataMapper {
                 getUuid(row, "task_id"),
                 getUuid(row, "author_user_id"),
                 getString(row, "content"),
-                getOffsetDateTime(row, "created_at"));
+                getOffsetDateTime(row, "created_at"),
+                getString(row, "author_name"),
+                getString(row, "author_email"));
     }
 
     public TaskHistoryEntry toHistoryEntry(Map<String, Object> row) {
@@ -48,7 +50,9 @@ public class TaskDataMapper {
                 getString(row, "previous_value"),
                 getString(row, "new_value"),
                 getString(row, "detail"),
-                getOffsetDateTime(row, "created_at"));
+                getOffsetDateTime(row, "created_at"),
+                getString(row, "actor_name"),
+                getString(row, "actor_email"));
     }
 
     public TaskUser toTaskUser(Map<String, Object> row, List<String> roles) {

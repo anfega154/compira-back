@@ -43,7 +43,9 @@ public class TaskResponseMapper {
                 observation.taskId(),
                 observation.authorUserId(),
                 observation.content(),
-                observation.createdAt());
+                observation.createdAt(),
+                observation.authorName(),
+                observation.authorEmail());
     }
 
     public TaskHistoryEntryResponse toResponse(TaskHistoryEntry entry) {
@@ -55,7 +57,9 @@ public class TaskResponseMapper {
                 entry.previousValue(),
                 entry.newValue(),
                 entry.detail(),
-                entry.createdAt());
+                entry.createdAt(),
+                entry.actorName(),
+                entry.actorEmail());
     }
 
     public TaskIndicatorsResponse toResponse(TaskIndicators indicators) {

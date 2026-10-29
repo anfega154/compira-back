@@ -192,6 +192,7 @@ public class TaskHandler {
                         .flatMap(response -> ServerResponse.ok()
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .bodyValue(response)))
+                .as(transactions::transactional)
                 .onErrorResume(taskErrorHandler::handle);
     }
 
@@ -230,6 +231,7 @@ public class TaskHandler {
                         .flatMap(response -> ServerResponse.status(HttpStatus.CREATED)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .bodyValue(response)))
+                .as(transactions::transactional)
                 .onErrorResume(taskErrorHandler::handle);
     }
 

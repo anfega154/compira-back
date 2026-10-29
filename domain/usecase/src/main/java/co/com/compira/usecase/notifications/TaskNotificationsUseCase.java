@@ -11,19 +11,24 @@ import co.com.compira.model.task.Task;
 import co.com.compira.model.task.TaskAuthorization;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
 import reactor.core.publisher.Flux;
+import co.com.compira.model.team.gateways.TeamRepositoryGateway;
 import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 public class TaskNotificationsUseCase {
     private static final String FORBIDDEN_CODE = "NOTIFICATION_001";
     private static final String FORBIDDEN = "Acceso no permitido";
+    private static final String TASK_WITHOUT_TEAM_CODE = "TEAM_001";
+    private static final String TASK_WITHOUT_TEAM = "La tarea no tiene equipo";
     public static final int PAGE_SIZE = 50;
     private final NotificationRepositoryGateway notifications;
     private final OrganizationSettingsGateway settings;
     private final TaskAuthorization authorization;
+    private final TeamRepositoryGateway teams;
 
     public TaskNotificationsUseCase(NotificationRepositoryGateway notifications, OrganizationSettingsGateway settings,
-                                    TaskUserDirectoryGateway users) {
+                                    TaskUserDirectoryGateway users, TeamRepositoryGateway teams) {
+        this.teams = teams;
         this.notifications = notifications;
         this.settings = settings;
         this.authorization = new TaskAuthorization(users);
@@ -32,6 +37,12 @@ public class TaskNotificationsUseCase {
     public Mono<Void> assignment(Task task, UUID recipientId, NotificationType type, UUID eventId) {
         return settings.get().flatMap(configuration -> notifications.save(task, recipientId, type,
                 eventId.toString(), configuration.notificationsEnabled()));
+    }
+
+    public Mono<Void> coordinator(Task task, NotificationType type, UUID eventId) {
+        return teams.findByTaskId(task.id())
+                .switchIfEmpty(Mono.error(new CompiraException(TASK_WITHOUT_TEAM_CODE, TASK_WITHOUT_TEAM, ErrorCategory.CONFLICT)))
+                .flatMap(team -> assignment(task, team.coordinatorUserId(), type, eventId));
     }
 
     public Flux<TaskNotification> list(String email, long beforeId) {

@@ -31,8 +31,9 @@ public class UserDirectoryAdapter implements UserDirectoryGateway {
                    (ARRAY_AGG(t.id ORDER BY t.name) FILTER (WHERE t.id IS NOT NULL))[1] AS team_id,
                    STRING_AGG(t.name, ', ' ORDER BY t.name) AS team_name
             FROM users u
-            LEFT JOIN team_members tm ON tm.user_id = u.id
-            LEFT JOIN teams t ON t.id = tm.team_id
+            LEFT JOIN teams t ON t.coordinator_user_id = u.id OR EXISTS (
+                SELECT 1 FROM team_members tm WHERE tm.user_id = u.id AND tm.team_id = t.id
+            )
             """;
     private static final String GROUP_BY_USER = " GROUP BY u.id";
     private static final String ORDER_BY = " ORDER BY u.first_name, u.last_name, u.email";
