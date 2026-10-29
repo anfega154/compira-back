@@ -159,4 +159,22 @@ class UserDirectoryPersistenceTest {
                           ('33333333-3333-3333-3333-333333333333', '77777777-7777-7777-7777-777777777777');
                         """).then();
     }
+    @Test
+    void showsTeamsForCurrentCoordinatorWithoutCollaboratorMembership() {
+        StepVerifier.create(users.findByEmail("current@compira.co"))
+                .assertNext(user -> { assertEquals(TEAM, user.teamId()); assertEquals("Operaciones", user.teamName()); }).verifyComplete();
+        StepVerifier.create(users.findAll().filter(user -> user.email().equals("current@compira.co")))
+                .assertNext(user -> assertEquals("Operaciones", user.teamName())).verifyComplete();
+    }
+
+    @Test
+    void listsEachCoordinatedAndMemberTeamOnlyOnceForDualRelationships() {
+        StepVerifier.create(database.sql("INSERT INTO team_members (user_id, team_id) VALUES (:user, :team)")
+                .bind("user", co.com.compira.r2dbc.NotificationPersistenceTestData.CURRENT_COORDINATOR).bind("team", TEAM).then()
+                .then(database.sql("INSERT INTO teams (id,name,coordinator_user_id) VALUES ('88888888-8888-8888-8888-888888888888','Ventas',:id)")
+                        .bind("id", co.com.compira.r2dbc.NotificationPersistenceTestData.CURRENT_COORDINATOR).then())
+                .then(users.findByEmail("current@compira.co")))
+                .assertNext(user -> assertEquals("Operaciones, Ventas", user.teamName())).verifyComplete();
+    }
+
 }

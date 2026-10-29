@@ -15,15 +15,19 @@ import co.com.compira.model.task.UpdateTaskStatusCommand;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
 import reactor.core.publisher.Mono;
+import co.com.compira.usecase.notifications.TaskNotificationsUseCase;
+import co.com.compira.model.notification.NotificationType;
 
 import java.util.UUID;
 
 public class UpdateTaskStatusUseCase {
     private final TaskRepositoryGateway taskRepositoryGateway;
     private final TaskAuthorization taskAuthorization;
+    private final TaskNotificationsUseCase notifications;
 
     public UpdateTaskStatusUseCase(TaskRepositoryGateway taskRepositoryGateway,
-                                   TaskUserDirectoryGateway taskUserDirectoryGateway) {
+                                   TaskUserDirectoryGateway taskUserDirectoryGateway, TaskNotificationsUseCase notifications) {
+        this.notifications = notifications;
         this.taskRepositoryGateway = taskRepositoryGateway;
         this.taskAuthorization = new TaskAuthorization(taskUserDirectoryGateway);
     }
@@ -64,6 +68,9 @@ public class UpdateTaskStatusUseCase {
                                 targetStatus.name(),
                                 null,
                                 null))
+                        .flatMap(event -> targetStatus == TaskStatus.COMPLETED
+                                ? notifications.coordinator(updatedTask, NotificationType.TASK_COMPLETED, event.id())
+                                : Mono.empty())
                         .thenReturn(updatedTask));
     }
 

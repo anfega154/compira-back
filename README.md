@@ -83,3 +83,38 @@ terraform apply
 ```bash
 ./gradlew test
 ```
+
+
+## Avisos al coordinador y trazabilidad
+
+- El coordinador vigente del equipo recibe `DUE_SOON` cuando una tarea activa está
+  dentro de las 24 horas previas a su vencimiento (incluida la frontera exacta).
+  Se conserva el aviso al responsable; una tarea sin responsable también avisa al
+  coordinador. Al llegar al vencimiento se conserva `OVERDUE`.
+- Una transición válida del responsable a `COMPLETED` genera `TASK_COMPLETED`.
+  Una observación autorizada genera `OBSERVATION_ADDED`, incluso si la escribe el
+  propio coordinador. Cada aviso de actividad usa el ID del evento de historial;
+  repetir la consulta no repite avisos y observaciones distintas no se confunden.
+- Los destinatarios son los del equipo actual, no el creador de la tarea.
+  Persisten las exclusiones de tareas terminadas/canceladas, el interruptor
+  global, los controles de acceso y la persistencia para usuarios desconectados.
+- Estado/observación, historial y aviso se confirman o revierten juntos. No se
+  agregan correos ni nuevas conexiones persistentes: el frontend consulta cada 30s.
+- Las respuestas de observaciones incluyen `authorName` y `authorEmail`; las de
+  historial incluyen `actorName` y `actorEmail`. Los IDs originales permanecen.
+  Se resuelve el perfil actual mediante una unión SQL, también para registros
+  anteriores y usuarios deshabilitados; no es una fotografía del nombre en el
+  momento histórico. Actor nulo significa acción automática del sistema.
+- El listado administrativo de usuarios muestra tanto equipos coordinados como
+  equipos de los que el usuario es miembro, sin duplicar equipos ni usuarios.
+  `teamName` contiene nombres ordenados; `teamId` conserva un equipo representativo
+  para compatibilidad, no debe interpretarse como la lista completa.
+
+### Publicación compatible
+
+La migración incremental `add_coordinator_notification_types.yaml` amplía la
+restricción de tipos; no modifica cambios Liquibase anteriores ni elimina datos.
+Publicar **primero frontend** (acepta los nuevos tipos y campos) y esperar su CD
+verde; luego publicar backend (aplica la migración y genera avisos). Recargar las
+pestañas antiguas para tomar el cliente nuevo. Volver al cliente anterior mientras
+existan tipos nuevos no es compatible con su validación estricta.

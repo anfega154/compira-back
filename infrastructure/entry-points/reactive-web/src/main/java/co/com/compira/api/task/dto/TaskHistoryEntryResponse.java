@@ -11,5 +11,7 @@ public record TaskHistoryEntryResponse(
         String previousValue,
         String newValue,
         String detail,
-        OffsetDateTime createdAt) {
+        OffsetDateTime createdAt,
+        String actorName,
+        String actorEmail) {
 }

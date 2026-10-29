@@ -8,5 +8,7 @@ public record TaskObservationResponse(
         UUID taskId,
         UUID authorUserId,
         String content,
-        OffsetDateTime createdAt) {
+        OffsetDateTime createdAt,
+        String authorName,
+        String authorEmail) {
 }

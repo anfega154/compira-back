@@ -51,20 +51,30 @@ public class TaskRepositoryAdapter implements TaskRepositoryGateway {
             TASK_WITH_TEAM_SELECT + " WHERE t.coordinator_user_id = :createdByUserId ORDER BY tasks.due_date NULLS LAST, tasks.created_at DESC";
     private static final String SELECT_ALL_TASKS_QUERY =
             TASK_WITH_TEAM_SELECT + " ORDER BY tasks.due_date NULLS LAST, tasks.created_at DESC";
+    private static final String OBSERVATION_SELECT = """
+            SELECT o.*, NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), '') AS author_name,
+                   u.email AS author_email FROM %s o LEFT JOIN users u ON u.id = o.author_user_id
+            """;
+    private static final String HISTORY_SELECT = """
+            SELECT h.*, NULLIF(TRIM(CONCAT_WS(' ', u.first_name, u.last_name)), '') AS actor_name,
+                   u.email AS actor_email FROM %s h LEFT JOIN users u ON u.id = h.actor_user_id
+            """;
     private static final String INSERT_OBSERVATION_QUERY = """
-            INSERT INTO task_observations (task_id, author_user_id, content)
-            VALUES (:taskId, :authorUserId, :content)
-            RETURNING *
-            """;
-    private static final String SELECT_OBSERVATIONS_QUERY =
-            "SELECT * FROM task_observations WHERE task_id = :taskId ORDER BY created_at ASC";
+            WITH saved AS (
+                INSERT INTO task_observations (task_id, author_user_id, content)
+                VALUES (:taskId, :authorUserId, :content) RETURNING *
+            )
+            """ + OBSERVATION_SELECT.formatted("saved");
+    private static final String SELECT_OBSERVATIONS_QUERY = OBSERVATION_SELECT.formatted("task_observations")
+            + " WHERE o.task_id = :taskId ORDER BY o.created_at ASC, o.id ASC";
     private static final String INSERT_HISTORY_QUERY = """
-            INSERT INTO task_history (task_id, event, actor_user_id, previous_value, new_value, detail)
-            VALUES (:taskId, :event, :actorUserId, :previousValue, :newValue, :detail)
-            RETURNING *
-            """;
-    private static final String SELECT_HISTORY_QUERY =
-            "SELECT * FROM task_history WHERE task_id = :taskId ORDER BY created_at ASC";
+            WITH saved AS (
+                INSERT INTO task_history (task_id, event, actor_user_id, previous_value, new_value, detail)
+                VALUES (:taskId, :event, :actorUserId, :previousValue, :newValue, :detail) RETURNING *
+            )
+            """ + HISTORY_SELECT.formatted("saved");
+    private static final String SELECT_HISTORY_QUERY = HISTORY_SELECT.formatted("task_history")
+            + " WHERE h.task_id = :taskId ORDER BY h.created_at ASC, h.id ASC";
 
     private final DatabaseClient databaseClient;
     private final TaskDataMapper taskDataMapper;

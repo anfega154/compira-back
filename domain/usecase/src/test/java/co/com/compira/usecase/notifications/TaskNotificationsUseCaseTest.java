@@ -20,7 +20,8 @@ class TaskNotificationsUseCaseTest {
     private final NotificationRepositoryGateway notifications = mock(NotificationRepositoryGateway.class);
     private final OrganizationSettingsGateway settings = mock(OrganizationSettingsGateway.class);
     private final TaskUserDirectoryGateway users = mock(TaskUserDirectoryGateway.class);
-    private final TaskNotificationsUseCase useCase = new TaskNotificationsUseCase(notifications, settings, users);
+    private final co.com.compira.model.team.gateways.TeamRepositoryGateway teams = mock(co.com.compira.model.team.gateways.TeamRepositoryGateway.class);
+    private final TaskNotificationsUseCase useCase = new TaskNotificationsUseCase(notifications, settings, users, teams);
 
     @BeforeEach
     void configure() {
@@ -89,4 +90,30 @@ class TaskNotificationsUseCaseTest {
                 .verify();
         verify(notifications, never()).markAllAsRead(any());
     }
+    @ParameterizedTest
+    @EnumSource(value = NotificationType.class, names = {"TASK_COMPLETED", "OBSERVATION_ADDED"})
+    void sendsActivityToCurrentCoordinatorInsteadOfTaskCreator(NotificationType type) {
+        when(teams.findByTaskId(TaskTestData.TASK_ID)).thenReturn(Mono.just(NotificationTestData.team()));
+        var task = TaskTestData.task(TaskStatus.COMPLETED);
+        StepVerifier.create(useCase.coordinator(task, type, NotificationTestData.EVENT_ID)).verifyComplete();
+        verify(notifications).save(task, NotificationTestData.CURRENT_COORDINATOR, type, NotificationTestData.EVENT_ID.toString(), true);
+        verify(notifications, never()).save(any(), eq(TaskTestData.COORDINATOR_ID), any(), anyString(), anyBoolean());
+    }
+
+    @Test
+    void suppressesCoordinatorActivityWhenGlobalSwitchIsDisabled() {
+        when(settings.get()).thenReturn(Mono.just(NotificationTestData.settings(false)));
+        when(teams.findByTaskId(TaskTestData.TASK_ID)).thenReturn(Mono.just(NotificationTestData.team()));
+        StepVerifier.create(useCase.coordinator(TaskTestData.task(TaskStatus.COMPLETED), NotificationType.TASK_COMPLETED, NotificationTestData.EVENT_ID)).verifyComplete();
+        verify(notifications).save(any(), eq(NotificationTestData.CURRENT_COORDINATOR), eq(NotificationType.TASK_COMPLETED), anyString(), eq(false));
+    }
+
+    @Test
+    void failsRatherThanLosingTheCoordinatorNotificationWhenTeamIsMissing() {
+        when(teams.findByTaskId(TaskTestData.TASK_ID)).thenReturn(Mono.empty());
+        StepVerifier.create(useCase.coordinator(TaskTestData.task(TaskStatus.COMPLETED), NotificationType.TASK_COMPLETED, NotificationTestData.EVENT_ID))
+                .expectError(co.com.compira.model.common.error.CompiraException.class).verify();
+        verifyNoInteractions(notifications);
+    }
+
 }
