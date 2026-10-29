@@ -182,8 +182,10 @@ resource "aws_iam_role_policy" "gateway_logs" {
   name = "${local.name}-gateway-logs"
   role = aws_iam_role.gateway_logs.id
   policy = jsonencode({ Version = "2012-10-17", Statement = [
-    { Effect = "Allow", Action = ["logs:DescribeLogGroups"], Resource = "*" },
-    { Effect = "Allow", Action = ["logs:CreateLogStream", "logs:DescribeLogStreams", "logs:PutLogEvents", "logs:GetLogEvents", "logs:FilterLogEvents"], Resource = "${aws_cloudwatch_log_group.gateway.arn}:*" }
+    # Account-level API Gateway verification needs the standard seven CloudWatch
+    # permissions, including creating its validation log group. This shared role
+    # has no application, database, Cognito or IAM administration permissions.
+    { Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:DescribeLogGroups", "logs:DescribeLogStreams", "logs:PutLogEvents", "logs:GetLogEvents", "logs:FilterLogEvents"], Resource = "*" }
   ] })
 }
 resource "aws_api_gateway_account" "logging" {
