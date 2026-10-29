@@ -1,0 +1,5 @@
+bucket = "<bucket-state-existente>"
+key = "qa/realtime/terraform.tfstate"
+region = "us-east-1"
+dynamodb_table = "<tabla-lock-existente>"
+encrypt = true

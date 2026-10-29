@@ -1,0 +1,16 @@
+dependencies {
+    implementation project(':model')
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework.boot:spring-boot'
+    implementation platform('software.amazon.awssdk:bom:2.31.74')
+    implementation 'software.amazon.awssdk:dynamodb'
+    implementation 'software.amazon.awssdk:sqs'
+    implementation 'software.amazon.awssdk:sts'
+}
+
+tasks.register('realtimeSimulationProbe', JavaExec) {
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'co.com.compira.realtime.AwsRealtimeSimulationProbe'
+    systemProperty 'realtime.simulation.url', providers.gradleProperty('realtimeSimulationUrl').getOrElse('http://127.0.0.1:4952/aws')
+}

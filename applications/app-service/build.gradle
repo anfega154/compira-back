@@ -5,6 +5,7 @@ dependencies {
     implementation project(':cognito-identity-provider')
     implementation project(':r2dbc-postgresql')
     implementation project(':reactive-web')
+    implementation project(':aws-realtime')
     implementation project(':model')
     implementation project(':usecase')
     implementation 'org.springframework.boot:spring-boot-starter'

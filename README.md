@@ -118,3 +118,9 @@ Publicar **primero frontend** (acepta los nuevos tipos y campos) y esperar su CD
 verde; luego publicar backend (aplica la migración y genera avisos). Recargar las
 pestañas antiguas para tomar el cliente nuevo. Volver al cliente anterior mientras
 existan tipos nuevos no es compatible con su validación estricta.
+
+## Canal WebSocket administrado
+
+Ver [operación, contrato y retorno seguro](docs/notificaciones_tiempo_real_qa.md).
+El transporte conserva los avisos PostgreSQL, añade outbox y un módulo Terraform
+`realtime` aislado. Activación explícita y consulta30s sólo como respaldo.
