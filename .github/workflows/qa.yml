@@ -26,6 +26,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Test deployment confirmation guards
         run: python3 -m unittest discover -s scripts/deploy/tests -v
+      - name: Test managed realtime transport
+        run: python3 -m unittest discover -s deployment/realtime/tests -v
       - run: ./gradlew test jacocoMergedReport
       - name: Enforce merged JaCoCo coverage thresholds
         run: |
@@ -55,7 +57,7 @@ jobs:
       - run: terraform fmt -check -recursive deployment/terraform
       - name: Validate each module without remote state or AWS credentials
         run: |
-          for module in bootstrap cognito frontend service; do
+          for module in bootstrap cognito frontend service realtime; do
             terraform -chdir="deployment/terraform/$module" init -backend=false -input=false
             terraform -chdir="deployment/terraform/$module" validate
           done
@@ -80,6 +82,10 @@ jobs:
       ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
       ECS_SERVICE: ${{ vars.ECS_SERVICE }}
       API_HEALTH_URL: ${{ vars.API_HEALTH_URL }}
+      NOTIFICATIONS_REALTIME_ENABLED: ${{ vars.NOTIFICATIONS_REALTIME_ENABLED }}
+      NOTIFICATIONS_REALTIME_URL: ${{ vars.NOTIFICATIONS_REALTIME_URL }}
+      NOTIFICATIONS_REALTIME_TABLE: ${{ vars.NOTIFICATIONS_REALTIME_TABLE }}
+      NOTIFICATIONS_REALTIME_QUEUE_URL: ${{ vars.NOTIFICATIONS_REALTIME_QUEUE_URL }}
       IMAGE_TAG: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4

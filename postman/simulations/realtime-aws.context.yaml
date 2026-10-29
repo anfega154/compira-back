@@ -1,0 +1,16 @@
+purpose:
+  stands_in_for: DynamoDB PutItem and SQS SendMessage HTTP dependencies of the new AWS realtime adapter.
+  unblocks: Real SDK serialization, signed local request path, success and unavailable resource failure checks.
+assumptions:
+  - id: aws-http-envelope
+    status: supported
+    claim: The real Java SDK issues the hashed ticket PutItem and recipient envelope SendMessage expected by the adapter.
+    reason: Mockito-only tests do not exercise HTTP serialization or AWS error decoding.
+    verification: JavaExec real SDK probe passed hashed PutItem and SendMessage with MD5 verification plus unavailable-table and unavailable-queue error decoding. Four actual POSTs recorded with200/200/400/400; fixtures owned locally from AWS operation contracts, no owning-team mock reused. Does not verify actual IAM or cloud delivery.
+    source: infrastructure/driven-adapters/aws-realtime/src/test/java/co/com/compira/realtime/AwsRealtimeSimulationProbe.java
+    updated_at: '2026-10-29'
+fingerprints:
+  - id: realtime-local
+    date: '2026-10-29'
+    commit: 90c9ecdd881e2f35c2094c6dd097473716654962
+    cli: '1.74.0'

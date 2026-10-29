@@ -27,6 +27,18 @@ task = {k:v for k,v in task.items() if k in allowed}
 containers = [c for c in task['containerDefinitions'] if c['name'] == 'compira-api']
 if len(containers) != 1: raise SystemExit('Expected exactly one compira-api container')
 containers[0]['image'] = os.environ['DEPLOY_IMAGE']
+flag = os.environ.get('NOTIFICATIONS_REALTIME_ENABLED', '')
+if flag:
+    if flag not in ('true', 'false'): raise SystemExit('Invalid realtime flag')
+    env = {v['name']:v['value'] for v in containers[0].get('environment', [])}
+    env['NOTIFICATIONS_REALTIME_ENABLED'] = flag
+    if flag == 'true':
+        for key in ('NOTIFICATIONS_REALTIME_URL', 'NOTIFICATIONS_REALTIME_TABLE', 'NOTIFICATIONS_REALTIME_QUEUE_URL'):
+            value = os.environ.get(key, '')
+            if not value: raise SystemExit('Missing realtime deployment setting: ' + key)
+            env[key] = value
+        if not env['NOTIFICATIONS_REALTIME_URL'].startswith('wss://'): raise SystemExit('WebSocket URL must use TLS')
+    containers[0]['environment'] = [{'name':k,'value':v} for k,v in env.items()]
 with open(sys.argv[2], 'w') as f: json.dump(task, f)
 PY
 next=$(aws ecs register-task-definition --cli-input-json "file://$work/next.json" \

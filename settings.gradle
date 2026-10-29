@@ -13,6 +13,8 @@ buildCache {
 rootProject.name = 'compira-back'
 
 include ':app-service'
+include ':aws-realtime'
+project(':aws-realtime').projectDir = file('./infrastructure/driven-adapters/aws-realtime')
 include ':model'
 include ':usecase'
 project(':app-service').projectDir = file('./applications/app-service')

@@ -248,4 +248,25 @@ class NotificationPersistenceTest {
         StepVerifier.create(notifications.findByRecipient(CURRENT_COORDINATOR, Long.MAX_VALUE, 50)).verifyComplete();
     }
 
+    @Test
+    void committedDeliverableNoticeAndOutboxAreAtomicAndDeduplicated() {
+        var outbox = new NotificationOutboxAdapter(database);
+        StepVerifier.create(tasks.findById(TASK).flatMap(task -> notifications.save(task, CURRENT_COORDINATOR, NotificationType.TASK_COMPLETED, "outbox-one", true)
+            .then(notifications.save(task, CURRENT_COORDINATOR, NotificationType.TASK_COMPLETED, "outbox-one", true))
+            .then(notifications.save(task, CURRENT_COORDINATOR, NotificationType.OBSERVATION_ADDED, "disabled-one", false))))
+            .verifyComplete();
+        StepVerifier.create(outbox.lockPending().collectList()).assertNext(list -> assertEquals(1, list.size())).verifyComplete();
+        StepVerifier.create(outbox.lockPending().concatMap(e -> outbox.retryLater(e.id()))).verifyComplete();
+        StepVerifier.create(outbox.lockPending()).verifyComplete();
+        StepVerifier.create(database.sql("UPDATE notification_outbox SET available_at = CURRENT_TIMESTAMP - INTERVAL '1 second'").then()
+            .thenMany(outbox.lockPending()).concatMap(e -> outbox.delivered(e.id()))).verifyComplete();
+        StepVerifier.create(outbox.lockPending()).verifyComplete();
+    }
+    @Test
+    void rolledBackNoticeCannotBePublishedByTheOutbox() {
+        StepVerifier.create(tasks.findById(TASK).flatMap(task -> notifications.save(task, CURRENT_COORDINATOR, NotificationType.TASK_COMPLETED, "rollback-one", true)
+            .then(Mono.error(new IllegalStateException("rollback")))).as(transactions::transactional)).expectError(IllegalStateException.class).verify();
+        StepVerifier.create(new NotificationOutboxAdapter(database).lockPending()).verifyComplete();
+        StepVerifier.create(notifications.findByRecipient(CURRENT_COORDINATOR, Long.MAX_VALUE, 50)).verifyComplete();
+    }
 }
