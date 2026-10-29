@@ -52,7 +52,18 @@ acciones generadas por el navegador. No se garantiza latencia cero.
 ## Infraestructura separada y despliegue
 
 Módulo `deployment/terraform/realtime`, estado `qa/realtime/terraform.tfstate` en
-el bucket/tabla de bloqueo ya existentes. No aplicar ni destruir los estados
+el bucket/tabla de bloqueo ya existentes. La cuenta QA tiene10ejecuciones Lambda concurrentes y exige conservar10sin
+reservar: usar concurrencia no reservada(-1), con SQS limitado a5. Los logs de
+WebSocket requieren además un rol regional de API Gateway hacia CloudWatch. Se
+verificó que el ajuste estaba vacío antes de administrarlo; el rol usa las siete
+acciones CloudWatch del permiso estándar AmazonAPIGatewayPushToCloudWatchLogs
+(incluye crear el grupo de validación), a nivel regional, y tiene protección
+prevent_destroy. No permite administrar IAM ni acceder a datos de aplicación.
+Referencia: https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonAPIGatewayPushToCloudWatchLogs.html. Si otra pila ya posee
+ese ajuste, reutilizar/importar su gestión en vez de sobrescribirlo. Este ajuste
+es regional/compartido: nunca eliminarlo como parte de una reversión de aplicación.
+
+No aplicar ni destruir los estados
 service/cognito/frontend para incorporar este módulo.
 
 1. Confirmar tag remoto de retorno en ambos repos y guardar task definition,

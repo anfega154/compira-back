@@ -92,15 +92,16 @@ data "archive_file" "lambda" {
   output_path = "${path.module}/lambda.zip"
 }
 resource "aws_lambda_function" "notifications" {
-  function_name                  = local.name
-  role                           = aws_iam_role.lambda.arn
-  runtime                        = "python3.13"
-  handler                        = "handler.handler"
-  filename                       = data.archive_file.lambda.output_path
-  source_code_hash               = data.archive_file.lambda.output_base64sha256
-  timeout                        = 30
-  memory_size                    = 256
-  reserved_concurrent_executions = 10
+  function_name    = local.name
+  role             = aws_iam_role.lambda.arn
+  runtime          = "python3.13"
+  handler          = "handler.handler"
+  filename         = data.archive_file.lambda.output_path
+  source_code_hash = data.archive_file.lambda.output_base64sha256
+  timeout          = 30
+  memory_size      = 256
+  # This QA account has only10 unreserved executions; reserving any is rejected.
+  reserved_concurrent_executions = -1
   environment { variables = {
     CONNECTIONS_TABLE = aws_dynamodb_table.connections.name
     ALLOWED_ORIGINS   = jsonencode(var.allowed_origins)
@@ -130,6 +131,7 @@ resource "aws_apigatewayv2_route" "routes" {
   authorization_type = "NONE"
 }
 resource "aws_apigatewayv2_stage" "qa" {
+  depends_on  = [aws_api_gateway_account.logging]
   api_id      = aws_apigatewayv2_api.websocket.id
   name        = "qa"
   auto_deploy = true
@@ -167,3 +169,27 @@ output "connections_table" { value = aws_dynamodb_table.connections.name }
 output "queue_url" { value = aws_sqs_queue.events.url }
 output "dead_letter_queue_url" { value = aws_sqs_queue.dead.url }
 output "function_name" { value = aws_lambda_function.notifications.function_name }
+
+# WebSocket access logging needs a regional account role, unlike the HTTP API.
+# Verified unset before adopting this shared setting. Do not overwrite a role
+# managed by another stack: import/reuse that ownership instead.
+resource "aws_iam_role" "gateway_logs" {
+  name               = "${local.name}-gateway-logs"
+  assume_role_policy = jsonencode({ Version = "2012-10-17", Statement = [{ Effect = "Allow", Principal = { Service = "apigateway.amazonaws.com" }, Action = "sts:AssumeRole" }] })
+  lifecycle { prevent_destroy = true }
+}
+resource "aws_iam_role_policy" "gateway_logs" {
+  name = "${local.name}-gateway-logs"
+  role = aws_iam_role.gateway_logs.id
+  policy = jsonencode({ Version = "2012-10-17", Statement = [
+    # Account-level API Gateway verification needs the standard seven CloudWatch
+    # permissions, including creating its validation log group. This shared role
+    # has no application, database, Cognito or IAM administration permissions.
+    { Effect = "Allow", Action = ["logs:CreateLogGroup", "logs:CreateLogStream", "logs:DescribeLogGroups", "logs:DescribeLogStreams", "logs:PutLogEvents", "logs:GetLogEvents", "logs:FilterLogEvents"], Resource = "*" }
+  ] })
+}
+resource "aws_api_gateway_account" "logging" {
+  cloudwatch_role_arn = aws_iam_role.gateway_logs.arn
+  depends_on          = [aws_iam_role_policy.gateway_logs]
+  lifecycle { prevent_destroy = true }
+}
