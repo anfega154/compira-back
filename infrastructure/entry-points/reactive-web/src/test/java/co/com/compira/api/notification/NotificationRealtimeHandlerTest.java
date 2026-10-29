@@ -18,7 +18,7 @@ class NotificationRealtimeHandlerTest {
         when(useCase.ticket(eq(SecurityTestData.EMAIL), eq(token.getExpiresAt())))
             .thenReturn(Mono.just(new RealtimeTicket("wss://example.test/qa?ticket=one", token.getExpiresAt())));
         var principal = new JwtAuthenticationToken(token, List.of(), SecurityTestData.EMAIL);
-        var client = WebTestClient.bindToRouterFunction(new NotificationRealtimeRouter().notificationRealtimeRouter(new NotificationRealtimeHandler(useCase, new TaskErrorHandler())))
+        var client = WebTestClient.bindToRouterFunction(new NotificationRealtimeRouter().notificationRealtimeRoutes(new NotificationRealtimeHandler(useCase, new TaskErrorHandler())))
             .webFilter((exchange, chain) -> chain.filter(exchange.mutate().principal(Mono.just(principal)).build())).build();
         client.post().uri(NotificationRealtimeHandler.PATH).bodyValue("{\"userId\":\"other\"}").exchange()
             .expectStatus().isOk().expectHeader().valueEquals("Cache-Control", "no-store").expectBody().jsonPath("$.url").isEqualTo("wss://example.test/qa?ticket=one");
@@ -28,7 +28,7 @@ class NotificationRealtimeHandlerTest {
         var useCase = mock(NotificationRealtimeUseCase.class);
         when(useCase.ticket(anyString(), any())).thenReturn(Mono.error(new IllegalStateException("disabled")));
         var principal = new JwtAuthenticationToken(SecurityTestData.token(), List.of(), SecurityTestData.EMAIL);
-        var client = WebTestClient.bindToRouterFunction(new NotificationRealtimeRouter().notificationRealtimeRouter(new NotificationRealtimeHandler(useCase, new TaskErrorHandler())))
+        var client = WebTestClient.bindToRouterFunction(new NotificationRealtimeRouter().notificationRealtimeRoutes(new NotificationRealtimeHandler(useCase, new TaskErrorHandler())))
             .webFilter((exchange, chain) -> chain.filter(exchange.mutate().principal(Mono.just(principal)).build())).build();
         client.post().uri(NotificationRealtimeHandler.PATH).exchange().expectStatus().isEqualTo(503).expectHeader().valueEquals("Cache-Control", "no-store");
     }

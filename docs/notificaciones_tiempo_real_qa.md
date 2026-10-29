@@ -141,3 +141,14 @@ PostgreSQL real/Testcontainers; la prueba HTTP SDK con Postman y auditoría de
 navegador separan el contrato local de la nube. Registrar resultados reales de
 pipelines, plan aplicado, endpoint, digest, conexión y límites pendientes en el
 informe de entrega. Nunca incluir JWT, tickets activos ni contraseñas.
+
+## Comprobar el arranque antes de promover
+
+La regresión incluye `ApplicationStartupTest`: aplicación Spring completa con
+PostgreSQL real, migraciones y tiempo real habilitado con configuración ficticia,
+verificación HTTP de salud y rechazo de tickets sin autenticación. Además,
+`NotificationRealtimeRouterContextTest` registra las rutas con sobrescritura de
+beans prohibida. No habilitar `spring.main.allow-bean-definition-overriding` para
+ocultar una colisión de nombres. La configuración `NotificationRealtimeRouter`
+y el método factory `notificationRealtimeRoutes` deben tener nombres diferentes.
+El contrato OpenAPI se valida adicionalmente en la auditoría del despliegue.
