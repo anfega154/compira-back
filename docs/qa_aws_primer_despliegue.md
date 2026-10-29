@@ -1,5 +1,13 @@
 # COMPIRA QA: primer despliegue y operación continua
 
+> **Actualización2026-10-29 — evolución de QA:** la infraestructura base ya está
+> desplegada; las fases antiguas se conservan como referencia histórica, no como
+> instrucciones para recrear recursos existentes. Se añade notificación WebSocket
+> administrada, respaldo de versiones y retorno seguro. Seguir el
+> [runbook de tiempo real](notificaciones_tiempo_real_qa.md) para el canal nuevo,
+> variables, permisos, pruebas y reversión. No hacer pública Aurora.
+
+
 ## Alcance y arquitectura
 
 Cognito ya existe. Este procedimiento crea desde cero: backend remoto Terraform (S3/DynamoDB), rol OIDC de GitHub, VPC de dos zonas, subredes públicas/privadas, NAT Gateway, API Gateway HTTP público, ALB interno, ECS Fargate, ECR, Aurora PostgreSQL Serverless v2, CloudWatch, S3 privado y CloudFront para el frontend.

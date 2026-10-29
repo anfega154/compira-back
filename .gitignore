@@ -355,3 +355,6 @@ deployment/terraform/bootstrap/backend.tf
 
 # Python deployment verification helpers
 __pycache__/
+
+# Generated managed transport bundle
+deployment/terraform/realtime/lambda.zip

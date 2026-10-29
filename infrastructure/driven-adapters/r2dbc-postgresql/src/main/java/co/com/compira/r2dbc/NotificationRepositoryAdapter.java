@@ -16,9 +16,14 @@ import java.util.UUID;
 @Repository
 public class NotificationRepositoryAdapter implements NotificationRepositoryGateway {
     private static final String INSERT = """
-            INSERT INTO task_notifications (task_id, recipient_id, task_title, type, event_key, deliverable)
-            VALUES (:taskId, :recipientId, :title, :type, :eventKey, :deliverable)
-            ON CONFLICT (event_key, recipient_id) DO NOTHING
+            WITH saved AS (
+                INSERT INTO task_notifications (task_id, recipient_id, task_title, type, event_key, deliverable)
+                VALUES (:taskId, :recipientId, :title, :type, :eventKey, :deliverable)
+                ON CONFLICT (event_key, recipient_id) DO NOTHING
+                RETURNING id, recipient_id, deliverable
+            )
+            INSERT INTO notification_outbox (notification_id, recipient_id)
+            SELECT id, recipient_id FROM saved WHERE deliverable
             """;
     private static final String SELECT = """
             SELECT id, task_id, task_title, type, created_at, read_at FROM task_notifications
