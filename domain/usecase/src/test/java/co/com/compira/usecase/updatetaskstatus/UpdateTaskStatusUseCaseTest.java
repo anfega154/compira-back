@@ -21,7 +21,8 @@ import static org.mockito.Mockito.when;
 class UpdateTaskStatusUseCaseTest {
     private final TaskRepositoryGateway taskRepositoryGateway = mock(TaskRepositoryGateway.class);
     private final TaskUserDirectoryGateway taskUserDirectoryGateway = mock(TaskUserDirectoryGateway.class);
-    private final UpdateTaskStatusUseCase useCase = new UpdateTaskStatusUseCase(taskRepositoryGateway, taskUserDirectoryGateway);
+    private final co.com.compira.usecase.notifications.TaskNotificationsUseCase notifications = mock(co.com.compira.usecase.notifications.TaskNotificationsUseCase.class);
+    private final UpdateTaskStatusUseCase useCase = new UpdateTaskStatusUseCase(taskRepositoryGateway, taskUserDirectoryGateway, notifications);
 
     @Test
     void shouldAdvanceStatusWhenResponsibleAndTransitionValid() {
@@ -38,6 +39,7 @@ class UpdateTaskStatusUseCaseTest {
                         TaskTestData.COLLABORATOR_EMAIL, TaskTestData.TASK_ID, TaskStatus.IN_PROGRESS)))
                 .assertNext(task -> assertStatus(task, TaskStatus.IN_PROGRESS))
                 .verifyComplete();
+        org.mockito.Mockito.verifyNoInteractions(notifications);
     }
 
     @Test
@@ -87,4 +89,30 @@ class UpdateTaskStatusUseCaseTest {
             throw new AssertionError("Expected status " + expected);
         }
     }
+    @Test
+    void notifiesCoordinatorWhenResponsibleCompletesTask() {
+        when(taskUserDirectoryGateway.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
+        when(taskRepositoryGateway.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.IN_PROGRESS)));
+        when(taskRepositoryGateway.updateStatus(TaskTestData.TASK_ID, TaskStatus.COMPLETED.name())).thenReturn(Mono.just(TaskTestData.task(TaskStatus.COMPLETED)));
+        var event = new TaskHistoryEntry(co.com.compira.usecase.notifications.NotificationTestData.EVENT_ID, TaskTestData.TASK_ID,
+                co.com.compira.model.task.TaskHistoryEvent.STATUS_CHANGED, TaskTestData.COLLABORATOR_ID, "IN_PROGRESS", "COMPLETED", null, null);
+        when(taskRepositoryGateway.appendHistory(any())).thenReturn(Mono.just(event));
+        when(notifications.coordinator(any(), any(), any())).thenReturn(Mono.empty());
+        StepVerifier.create(useCase.execute(new UpdateTaskStatusCommand(TaskTestData.COLLABORATOR_EMAIL, TaskTestData.TASK_ID, TaskStatus.COMPLETED)))
+                .assertNext(task -> assertStatus(task, TaskStatus.COMPLETED)).verifyComplete();
+        org.mockito.Mockito.verify(notifications).coordinator(org.mockito.ArgumentMatchers.argThat(task -> task.status() == TaskStatus.COMPLETED),
+                eq(co.com.compira.model.notification.NotificationType.TASK_COMPLETED), eq(event.id()));
+    }
+
+    @Test
+    void propagatesNotificationFailureSoTheTransactionCanRollbackCompletion() {
+        when(taskUserDirectoryGateway.findByEmail(TaskTestData.COLLABORATOR_EMAIL)).thenReturn(Mono.just(TaskTestData.collaborator()));
+        when(taskRepositoryGateway.findById(TaskTestData.TASK_ID)).thenReturn(Mono.just(TaskTestData.task(TaskStatus.IN_PROGRESS)));
+        when(taskRepositoryGateway.updateStatus(TaskTestData.TASK_ID, "COMPLETED")).thenReturn(Mono.just(TaskTestData.task(TaskStatus.COMPLETED)));
+        when(taskRepositoryGateway.appendHistory(any())).thenReturn(Mono.just(mock(TaskHistoryEntry.class)));
+        when(notifications.coordinator(any(), any(), any())).thenReturn(Mono.error(new IllegalStateException("notification failed")));
+        StepVerifier.create(useCase.execute(new UpdateTaskStatusCommand(TaskTestData.COLLABORATOR_EMAIL, TaskTestData.TASK_ID, TaskStatus.COMPLETED)))
+                .expectError(IllegalStateException.class).verify();
+    }
+
 }

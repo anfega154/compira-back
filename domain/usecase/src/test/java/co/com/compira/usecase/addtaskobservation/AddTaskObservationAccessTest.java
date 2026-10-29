@@ -20,7 +20,13 @@ class AddTaskObservationAccessTest {
     private final TaskRepositoryGateway tasks = mock(TaskRepositoryGateway.class);
     private final TaskUserDirectoryGateway users = mock(TaskUserDirectoryGateway.class);
     private final TeamRepositoryGateway teams = mock(TeamRepositoryGateway.class);
-    private final AddTaskObservationUseCase useCase = new AddTaskObservationUseCase(tasks, users, new TeamsUseCase(teams, tasks, users));
+    private final co.com.compira.usecase.notifications.TaskNotificationsUseCase notifications = mock(co.com.compira.usecase.notifications.TaskNotificationsUseCase.class);
+    private final AddTaskObservationUseCase useCase = new AddTaskObservationUseCase(tasks, users, new TeamsUseCase(teams, tasks, users), notifications);
+
+    @org.junit.jupiter.api.BeforeEach
+    void configureNotifications() {
+        when(notifications.coordinator(any(), any(), any())).thenReturn(Mono.empty());
+    }
 
     @ParameterizedTest
     @ValueSource(strings = {"ADMINISTRATOR", "COORDINATOR", "COLLABORATOR"})
@@ -38,6 +44,7 @@ class AddTaskObservationAccessTest {
         StepVerifier.create(useCase.execute(new AddTaskObservationCommand(actor.email(), TaskTestData.TASK_ID, "Nota")))
                 .assertNext(saved -> { assertEquals(actor.id(), saved.authorUserId()); assertEquals("Nota", saved.content()); })
                 .verifyComplete();
+        verify(notifications).coordinator(argThat(task -> task.id().equals(TaskTestData.TASK_ID)), eq(co.com.compira.model.notification.NotificationType.OBSERVATION_ADDED), any());
         verify(tasks).appendHistory(argThat(entry -> entry.actorUserId().equals(actor.id())
                 && entry.event() == TaskHistoryEvent.OBSERVATION_ADDED && entry.detail().equals("Nota")));
     }
@@ -52,6 +59,7 @@ class AddTaskObservationAccessTest {
         StepVerifier.create(useCase.execute(new AddTaskObservationCommand(actor.email(), TaskTestData.TASK_ID, "Nota")))
                 .expectErrorMatches(error -> error instanceof CompiraException exception && exception.getErrorCategory() == ErrorCategory.FORBIDDEN)
                 .verify();
+        verifyNoInteractions(notifications);
         verify(tasks, never()).saveObservation(any());
         verify(tasks, never()).appendHistory(any());
     }

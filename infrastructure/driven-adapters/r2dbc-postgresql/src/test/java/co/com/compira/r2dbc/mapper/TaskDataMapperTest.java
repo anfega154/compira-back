@@ -74,12 +74,16 @@ class TaskDataMapperTest {
         row.put("task_id", TASK_ID);
         row.put("author_user_id", USER_ID);
         row.put("content", "Avance del 50%");
+        row.put("author_name", "Ana García");
+        row.put("author_email", "ana@example.test");
         row.put("created_at", NOW);
 
         TaskObservation observation = mapper.toObservation(row);
 
         assertEquals("Avance del 50%", observation.content());
         assertEquals(USER_ID, observation.authorUserId());
+        assertEquals("Ana García", observation.authorName());
+        assertEquals("ana@example.test", observation.authorEmail());
     }
 
     @Test
@@ -88,6 +92,8 @@ class TaskDataMapperTest {
         row.put("id", TASK_ID);
         row.put("task_id", TASK_ID);
         row.put("event", "STATUS_CHANGED");
+        row.put("actor_name", "Ana García");
+        row.put("actor_email", "ana@example.test");
         row.put("actor_user_id", USER_ID);
         row.put("previous_value", "PENDING");
         row.put("new_value", "IN_PROGRESS");
@@ -97,6 +103,8 @@ class TaskDataMapperTest {
         TaskHistoryEntry entry = mapper.toHistoryEntry(row);
 
         assertEquals(TaskHistoryEvent.STATUS_CHANGED, entry.event());
+        assertEquals("Ana García", entry.actorName());
+        assertEquals("ana@example.test", entry.actorEmail());
         assertEquals("PENDING", entry.previousValue());
         assertEquals("IN_PROGRESS", entry.newValue());
     }

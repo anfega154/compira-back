@@ -92,4 +92,18 @@ class TaskMapperTest {
         assertEquals("PENDING", response.previousValue());
         assertEquals("IN_PROGRESS", response.newValue());
     }
+    @Test
+    void exposesOriginalActorAndAuthorWithDisplayIdentity() {
+        var id = java.util.UUID.fromString("11111111-1111-1111-1111-111111111111");
+        var observation = responseMapper.toResponse(new co.com.compira.model.task.TaskObservation(id, id, id, "Nota", null, "Ana García", "ana@example.test"));
+        assertEquals(id, observation.authorUserId());
+        assertEquals("Ana García", observation.authorName());
+        assertEquals("ana@example.test", observation.authorEmail());
+        var history = responseMapper.toResponse(new co.com.compira.model.task.TaskHistoryEntry(id, id,
+                co.com.compira.model.task.TaskHistoryEvent.STATUS_CHANGED, id, "IN_PROGRESS", "COMPLETED", null, null, "Luis Pérez", "luis@example.test"));
+        assertEquals(id, history.actorUserId());
+        assertEquals("Luis Pérez", history.actorName());
+        assertEquals("luis@example.test", history.actorEmail());
+    }
+
 }

@@ -23,8 +23,14 @@ class AddTaskObservationUseCaseTest {
     private final TaskRepositoryGateway taskRepositoryGateway = mock(TaskRepositoryGateway.class);
     private final TaskUserDirectoryGateway taskUserDirectoryGateway = mock(TaskUserDirectoryGateway.class);
     private final TeamsUseCase teams = mock(TeamsUseCase.class);
+    private final co.com.compira.usecase.notifications.TaskNotificationsUseCase notifications = mock(co.com.compira.usecase.notifications.TaskNotificationsUseCase.class);
     private final AddTaskObservationUseCase useCase =
-            new AddTaskObservationUseCase(taskRepositoryGateway, taskUserDirectoryGateway, teams);
+            new AddTaskObservationUseCase(taskRepositoryGateway, taskUserDirectoryGateway, teams, notifications);
+
+    @org.junit.jupiter.api.BeforeEach
+    void configureNotifications() {
+        when(notifications.coordinator(any(), any(), any())).thenReturn(Mono.empty());
+    }
 
     @Test
     void shouldRegisterObservationWhenActorIsResponsibleCollaborator() {

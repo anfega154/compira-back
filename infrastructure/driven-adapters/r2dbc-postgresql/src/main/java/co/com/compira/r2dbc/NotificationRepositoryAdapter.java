@@ -36,14 +36,20 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryGate
     private static final String CANDIDATES = """
             SELECT t.* FROM tasks t JOIN task_teams tt ON tt.task_id = t.id JOIN teams tm ON tm.id = tt.team_id
             WHERE t.status IN ('PENDING', 'IN_PROGRESS', 'DELAYED') AND t.due_date <= :upcoming
-              AND (t.due_date <= :now OR t.responsible_user_id IS NOT NULL)
-              AND NOT EXISTS (
-                  SELECT 1 FROM task_notifications n
-                  WHERE n.task_id = t.id
-                    AND n.type = CASE WHEN t.due_date <= :now THEN 'OVERDUE' ELSE 'DUE_SOON' END
-                    AND n.recipient_id = CASE WHEN t.due_date <= :now THEN tm.coordinator_user_id ELSE t.responsible_user_id END
-                    AND n.event_key = t.id::text || ':' || floor(extract(epoch FROM t.due_date))::bigint::text || ':' ||
-                        CASE WHEN t.due_date <= :now THEN 'OVERDUE' ELSE 'DUE_SOON' END
+              AND EXISTS (
+                  SELECT 1 FROM (
+                      SELECT tm.coordinator_user_id AS recipient_id
+                      UNION
+                      SELECT t.responsible_user_id WHERE t.due_date > :now AND t.responsible_user_id IS NOT NULL
+                  ) recipients
+                  WHERE NOT EXISTS (
+                      SELECT 1 FROM task_notifications n
+                      WHERE n.task_id = t.id
+                        AND n.type = CASE WHEN t.due_date <= :now THEN 'OVERDUE' ELSE 'DUE_SOON' END
+                        AND n.recipient_id = recipients.recipient_id
+                        AND n.event_key = t.id::text || ':' || floor(extract(epoch FROM t.due_date))::bigint::text || ':' ||
+                            CASE WHEN t.due_date <= :now THEN 'OVERDUE' ELSE 'DUE_SOON' END
+                  )
               )
             ORDER BY t.due_date LIMIT :limit FOR UPDATE OF t, tm SKIP LOCKED
             """;

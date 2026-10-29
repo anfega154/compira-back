@@ -15,6 +15,8 @@ import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import co.com.compira.model.task.gateways.TaskUserDirectoryGateway;
 import co.com.compira.usecase.teams.TeamsUseCase;
 import reactor.core.publisher.Mono;
+import co.com.compira.usecase.notifications.TaskNotificationsUseCase;
+import co.com.compira.model.notification.NotificationType;
 
 import java.util.UUID;
 
@@ -22,10 +24,12 @@ public class AddTaskObservationUseCase {
     private final TaskRepositoryGateway taskRepositoryGateway;
     private final TaskAuthorization taskAuthorization;
     private final TeamsUseCase teams;
+    private final TaskNotificationsUseCase notifications;
 
     public AddTaskObservationUseCase(TaskRepositoryGateway taskRepositoryGateway,
                                      TaskUserDirectoryGateway taskUserDirectoryGateway,
-                                     TeamsUseCase teams) {
+                                     TeamsUseCase teams, TaskNotificationsUseCase notifications) {
+        this.notifications = notifications;
         this.taskRepositoryGateway = taskRepositoryGateway;
         this.taskAuthorization = new TaskAuthorization(taskUserDirectoryGateway);
         this.teams = teams;
@@ -50,6 +54,8 @@ public class AddTaskObservationUseCase {
                                 null,
                                 content,
                                 null))
+                        .flatMap(event -> notifications.coordinator(task,
+                                NotificationType.OBSERVATION_ADDED, event.id()))
                         .thenReturn(savedObservation));
     }
 

@@ -12,6 +12,7 @@ import co.com.compira.model.task.TaskStatus;
 import co.com.compira.model.task.gateways.TaskClockGateway;
 import co.com.compira.model.task.gateways.TaskRepositoryGateway;
 import reactor.core.publisher.Mono;
+import reactor.core.publisher.Flux;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 
@@ -51,9 +52,6 @@ public class EvaluateTaskAlertsUseCase {
             return Mono.empty();
         }
         NotificationType type = overdue ? NotificationType.OVERDUE : NotificationType.DUE_SOON;
-        if (!overdue && task.responsibleUserId() == null) {
-            return Mono.empty();
-        }
         String eventKey = task.id() + ":" + task.dueDate().toEpochSecond() + ":" + type.name();
         Mono<Void> transition = overdue && task.status() != TaskStatus.DELAYED
                 ? tasks.updateStatus(task.id(), TaskStatus.DELAYED.name())
@@ -61,7 +59,12 @@ public class EvaluateTaskAlertsUseCase {
                             TaskHistoryEvent.STATUS_CHANGED, null, task.status().name(), TaskStatus.DELAYED.name(), null, now)))
                     .then()
                 : Mono.empty();
-        return teams.findByTaskId(task.id()).flatMap(team -> transition.then(Mono.defer(() -> notifications.save(task,
-                overdue ? team.coordinatorUserId() : task.responsibleUserId(), type, eventKey, configuration.notificationsEnabled()))));
+        return teams.findByTaskId(task.id()).flatMap(team -> transition.thenMany(
+                        Flux.concat(Mono.just(team.coordinatorUserId()),
+                                overdue ? Mono.empty() : Mono.justOrEmpty(task.responsibleUserId()))
+                                .distinct()
+                                .concatMap(recipient -> notifications.save(task, recipient, type, eventKey,
+                                        configuration.notificationsEnabled())))
+                .then());
     }
 }

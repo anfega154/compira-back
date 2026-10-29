@@ -24,5 +24,12 @@ public final class NotificationPersistenceTestData {
             INSERT INTO task_teams (task_id, team_id) VALUES
               ('11111111-1111-1111-1111-111111111111', '55555555-5555-5555-5555-555555555555');
             """;
+    public static final String ACTIVITY_READY = """
+            UPDATE users SET first_name = 'Ana', last_name = 'García' WHERE id = '33333333-3333-3333-3333-333333333333';
+            INSERT INTO user_roles (user_id, role_id)
+              SELECT '33333333-3333-3333-3333-333333333333', id FROM roles WHERE code = 'COLLABORATOR';
+            UPDATE tasks SET status = 'IN_PROGRESS';
+            UPDATE organization_settings SET time_zone = 'America/Bogota', notifications_enabled = TRUE WHERE id = 1;
+            """;
     private NotificationPersistenceTestData() { }
 }

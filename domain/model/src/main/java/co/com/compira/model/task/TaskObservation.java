@@ -8,5 +8,10 @@ public record TaskObservation(
         UUID taskId,
         UUID authorUserId,
         String content,
-        OffsetDateTime createdAt) {
+        OffsetDateTime createdAt,
+        String authorName,
+        String authorEmail) {
+    public TaskObservation(UUID id, UUID taskId, UUID authorUserId, String content, OffsetDateTime createdAt) {
+        this(id, taskId, authorUserId, content, createdAt, null, null);
+    }
 }

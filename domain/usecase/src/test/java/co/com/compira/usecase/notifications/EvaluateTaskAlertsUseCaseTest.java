@@ -86,4 +86,53 @@ class EvaluateTaskAlertsUseCaseTest {
         verify(tasks).updateStatus(TaskTestData.TASK_ID, TaskStatus.DELAYED.name());
         verify(notifications).save(any(), any(), eq(NotificationType.OVERDUE), anyString(), eq(false));
     }
+    @ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {24, 12, 1})
+    void alertsBothCurrentCoordinatorAndResponsibleWithin24Hours(int hours) {
+        when(notifications.lockAlertCandidates(any(), any(), eq(100))).thenReturn(Flux.just(
+                NotificationTestData.task(TaskStatus.IN_PROGRESS, NotificationTestData.NOW.plusHours(hours))));
+        StepVerifier.create(useCase.evaluate()).verifyComplete();
+        verify(notifications).save(any(), eq(NotificationTestData.CURRENT_COORDINATOR), eq(NotificationType.DUE_SOON), anyString(), eq(true));
+        verify(notifications).save(any(), eq(TaskTestData.COLLABORATOR_ID), eq(NotificationType.DUE_SOON), anyString(), eq(true));
+        verifyNoInteractions(tasks);
+    }
+
+    @Test
+    void alertsCoordinatorOfUpcomingUnassignedTask() {
+        var original = NotificationTestData.task(TaskStatus.PENDING, NotificationTestData.NOW.plusHours(1));
+        var unassigned = new co.com.compira.model.task.Task(original.id(), original.title(), original.description(), original.dueDate(),
+                original.status(), null, original.createdByUserId(), original.createdAt(), original.updatedAt());
+        when(notifications.lockAlertCandidates(any(), any(), eq(100))).thenReturn(Flux.just(unassigned));
+        StepVerifier.create(useCase.evaluate()).verifyComplete();
+        verify(notifications).save(any(), eq(NotificationTestData.CURRENT_COORDINATOR), eq(NotificationType.DUE_SOON), anyString(), eq(true));
+        verify(notifications, times(1)).save(any(), any(), any(), anyString(), anyBoolean());
+    }
+
+    @Test
+    void deduplicatesCoordinatorWhoIsAlsoResponsible() {
+        when(teams.findByTaskId(TaskTestData.TASK_ID)).thenReturn(Mono.just(new co.com.compira.model.team.Team(
+                TaskTestData.TEAM_ID, "Equipo", TaskTestData.COLLABORATOR_ID, TaskTestData.COLLABORATOR_EMAIL)));
+        when(notifications.lockAlertCandidates(any(), any(), eq(100))).thenReturn(Flux.just(
+                NotificationTestData.task(TaskStatus.PENDING, NotificationTestData.NOW.plusHours(2))));
+        StepVerifier.create(useCase.evaluate()).verifyComplete();
+        verify(notifications, times(1)).save(any(), eq(TaskTestData.COLLABORATOR_ID), eq(NotificationType.DUE_SOON), anyString(), eq(true));
+    }
+
+    @Test
+    void doesNotEvaluateWithoutTimeZone() {
+        when(settings.get()).thenReturn(Mono.just(new co.com.compira.model.organization.OrganizationSettings(null, true)));
+        StepVerifier.create(useCase.evaluate()).verifyComplete();
+        verifyNoInteractions(notifications, tasks, teams);
+    }
+
+    @Test
+    void upcomingAlertsRespectDisabledNotificationsForBothRecipients() {
+        when(settings.get()).thenReturn(Mono.just(NotificationTestData.settings(false)));
+        when(notifications.lockAlertCandidates(any(), any(), eq(100))).thenReturn(Flux.just(
+                NotificationTestData.task(TaskStatus.PENDING, NotificationTestData.NOW.plusHours(4))));
+        StepVerifier.create(useCase.evaluate()).verifyComplete();
+        verify(notifications).save(any(), eq(NotificationTestData.CURRENT_COORDINATOR), eq(NotificationType.DUE_SOON), anyString(), eq(false));
+        verify(notifications).save(any(), eq(TaskTestData.COLLABORATOR_ID), eq(NotificationType.DUE_SOON), anyString(), eq(false));
+    }
+
 }
