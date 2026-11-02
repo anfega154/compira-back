@@ -11,7 +11,12 @@ public record TaskIndicators(
         long closedOnTimeCount,
         Integer compliancePercentage,
         List<AssigneeWorkload> workloadByAssignee,
-        List<Assignee> assignees) {
+        List<Assignee> assignees,
+        long evaluableClosedCount) {
+    public TaskIndicators(long totalTasks, long overdueCount, long dueSoonCount, long closedCount, long closedOnTimeCount,
+            Integer compliancePercentage, List<AssigneeWorkload> workloadByAssignee, List<Assignee> assignees) {
+        this(totalTasks, overdueCount, dueSoonCount, closedCount, closedOnTimeCount, compliancePercentage, workloadByAssignee, assignees, closedCount);
+    }
 
     public record AssigneeWorkload(
             UUID assigneeId,

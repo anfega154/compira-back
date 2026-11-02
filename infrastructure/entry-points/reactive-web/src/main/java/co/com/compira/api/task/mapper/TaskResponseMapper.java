@@ -77,7 +77,7 @@ public class TaskResponseMapper {
                 indicators.assignees().stream()
                         .map(assignee -> new TaskIndicatorsResponse.AssigneeResponse(
                                 assignee.id(), assignee.name(), assignee.email()))
-                        .toList());
+                        .toList(), indicators.evaluableClosedCount());
     }
 
     public TaskReportResponse toResponse(TaskReport report) {
@@ -85,7 +85,7 @@ public class TaskResponseMapper {
                 .map(row -> new TaskReportResponse.AssigneeReportRowResponse(
                         row.assigneeId(), row.assigneeName(), row.assigneeEmail(),
                         row.totalTasks(), row.activeTasks(), row.closedTasks(), row.closedOnTimeTasks(),
-                        row.overdueTasks(), row.compliancePercentage(), row.averageClosureHours()))
+                        row.overdueTasks(), row.compliancePercentage(), row.averageClosureHours(), row.evaluableClosedTasks()))
                 .toList());
     }
 }

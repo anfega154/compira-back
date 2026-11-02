@@ -14,7 +14,14 @@ public record Task(
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt,
         UUID teamId,
-        String teamName) {
+        String teamName,
+        OffsetDateTime closedAt) {
+
+    public Task(UUID id, String title, String description, OffsetDateTime dueDate, TaskStatus status,
+                UUID responsibleUserId, UUID createdByUserId, OffsetDateTime createdAt, OffsetDateTime updatedAt,
+                UUID teamId, String teamName) {
+        this(id, title, description, dueDate, status, responsibleUserId, createdByUserId, createdAt, updatedAt, teamId, teamName, null);
+    }
 
     /**
      * Constructor de compatibilidad para tareas sin información de equipo

@@ -15,6 +15,12 @@ public record TaskReport(List<AssigneeReportRow> rows) {
             long closedOnTimeTasks,
             long overdueTasks,
             Integer compliancePercentage,
-            Double averageClosureHours) {
+            Double averageClosureHours,
+            long evaluableClosedTasks) {
+        public AssigneeReportRow(UUID assigneeId, String assigneeName, String assigneeEmail, long totalTasks, long activeTasks,
+                long closedTasks, long closedOnTimeTasks, long overdueTasks, Integer compliancePercentage, Double averageClosureHours) {
+            this(assigneeId, assigneeName, assigneeEmail, totalTasks, activeTasks, closedTasks, closedOnTimeTasks,
+                 overdueTasks, compliancePercentage, averageClosureHours, closedTasks);
+        }
     }
 }

@@ -124,3 +124,7 @@ existan tipos nuevos no es compatible con su validación estricta.
 Ver [operación, contrato y retorno seguro](docs/notificaciones_tiempo_real_qa.md).
 El transporte conserva los avisos PostgreSQL, añade outbox y un módulo Terraform
 `realtime` aislado. Activación explícita y consulta30s sólo como respaldo.
+
+## Reportes gerenciales y exportación PDF
+
+Ver [manual funcional, contrato, fórmulas y operación](docs/reportes-gerenciales.md).

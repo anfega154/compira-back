@@ -326,6 +326,16 @@ class ResourceServerConfigTest {
         org.junit.jupiter.api.Assertions.assertTrue(validator.validate(SecurityTestData.claims("https://issuer.example", "expected-client", "access", future.minusSeconds(1000))).hasErrors());
     }
 
+    @ParameterizedTest
+    @EnumSource(value=RoleCode.class,names={"ADMINISTRATOR","COORDINATOR"})
+    void allowsExecutiveReportOnlyToManagers(RoleCode role) {
+        when(users.findByCognitoSub(SecurityTestData.SUBJECT)).thenReturn(Mono.just(SecurityTestData.user(role.name(),UserStatus.ACTIVE)));
+        client.get().uri("/api/v1/tasks/reports/executive").headers(h->h.setBearerAuth("valid-token")).exchange().expectStatus().isOk();
+    }
+    @Test void deniesExecutiveReportForCollaboratorAndAnonymous() {
+        client.get().uri("/api/v1/tasks/reports/executive").headers(h->h.setBearerAuth("valid-token")).exchange().expectStatus().isForbidden();
+        client.get().uri("/api/v1/tasks/reports/executive").header("X-Actor-Email","admin@example.test").exchange().expectStatus().isUnauthorized();
+    }
     @Configuration
     @EnableWebFlux
     @org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity
@@ -356,6 +366,7 @@ class ResourceServerConfigTest {
                     .POST(TeamHandler.MEMBERS, request -> ServerResponse.noContent().build())
                     .GET(TeamHandler.MEMBERS, request -> ServerResponse.ok().build())
                     .GET("/api/v1/organization/settings", request -> ServerResponse.ok().build())
+                    .GET("/api/v1/tasks/reports/executive",request->ServerResponse.ok().build())
                     .POST(co.com.compira.api.task.TaskRoute.API_V1 + co.com.compira.api.task.TaskRoute.TASKS_BASE,
                             request -> ServerResponse.noContent().build())
                     .POST(TASK_PATH + "/observations", request -> ServerResponse.noContent().build())
