@@ -73,6 +73,6 @@ class GetTaskReportsUseCaseTest {
                 TaskTestData.COLLABORATOR_ID,
                 TaskTestData.COORDINATOR_ID,
                 TaskTestData.now().minusDays(2),
-                closedAt);
+                closedAt, null, null, closedAt);
     }
 }
