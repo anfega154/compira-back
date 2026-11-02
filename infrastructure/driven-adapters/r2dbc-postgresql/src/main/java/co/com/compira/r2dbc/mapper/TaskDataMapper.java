@@ -27,7 +27,8 @@ public class TaskDataMapper {
                 getOffsetDateTime(row, "created_at"),
                 getOffsetDateTime(row, "updated_at"),
                 getUuid(row, "team_id"),
-                getString(row, "team_name"));
+                getString(row, "team_name"),
+                getOffsetDateTime(row, "closed_at"));
     }
 
     public TaskObservation toObservation(Map<String, Object> row) {

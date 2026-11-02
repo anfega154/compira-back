@@ -4,6 +4,7 @@ import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.common.error.CompiraException;
 import co.com.compira.model.common.error.ErrorCategory;
 import co.com.compira.model.task.Task;
+import co.com.compira.model.task.TaskReportingPolicy;
 import co.com.compira.model.task.TaskAuthorization;
 import co.com.compira.model.task.TaskErrorCode;
 import co.com.compira.model.task.TaskMessage;
@@ -62,7 +63,7 @@ public class GetTaskReportsUseCase {
     private Task withDerivedStatus(Task task) {
         if (task.isOverdue(taskClockGateway.now())) {
             return new Task(task.id(), task.title(), task.description(), task.dueDate(), TaskStatus.DELAYED,
-                    task.responsibleUserId(), task.createdByUserId(), task.createdAt(), task.updatedAt());
+                    task.responsibleUserId(), task.createdByUserId(), task.createdAt(), task.updatedAt(), task.teamId(), task.teamName(), task.closedAt());
         }
         return task;
     }
@@ -82,18 +83,19 @@ public class GetTaskReportsUseCase {
         long closed = tasks.stream().filter(task -> task.status() == TaskStatus.CLOSED).count();
         long closedOnTime = tasks.stream().filter(this::isClosedOnTime).count();
         long overdue = tasks.stream().filter(task -> task.status() == TaskStatus.DELAYED).count();
-        Integer compliance = closed == 0 ? null : Math.toIntExact(Math.round(closedOnTime * 100.0 / closed));
+        long evaluable = tasks.stream().filter(TaskReportingPolicy::isEvaluable).count();
+        Integer compliance = evaluable == 0 ? null : Math.toIntExact(Math.round(closedOnTime * 100.0 / evaluable));
         Double averageClosureHours = averageClosureHours(tasks);
         String name = assignee == null ? null : (safe(assignee.firstName()) + " " + safe(assignee.lastName())).trim();
         String email = assignee == null ? null : assignee.email();
         return new TaskReport.AssigneeReportRow(assigneeId, name == null || name.isBlank() ? null : name, email,
-                total, active, closed, closedOnTime, overdue, compliance, averageClosureHours);
+                total, active, closed, closedOnTime, overdue, compliance, averageClosureHours, evaluable);
     }
 
     private Double averageClosureHours(java.util.Collection<Task> tasks) {
         List<Double> durations = tasks.stream()
-                .filter(task -> task.status() == TaskStatus.CLOSED && task.createdAt() != null && task.updatedAt() != null)
-                .map(task -> Duration.between(task.createdAt(), task.updatedAt()).toMinutes() / 60.0)
+                .filter(TaskReportingPolicy::hasValidClosure)
+                .map(TaskReportingPolicy::closureHours)
                 .filter(hours -> hours >= 0)
                 .toList();
         if (durations.isEmpty()) {
@@ -104,10 +106,7 @@ public class GetTaskReportsUseCase {
     }
 
     private boolean isClosedOnTime(Task task) {
-        return task.status() == TaskStatus.CLOSED
-                && task.dueDate() != null
-                && task.updatedAt() != null
-                && !task.updatedAt().isAfter(task.dueDate());
+        return TaskReportingPolicy.isOnTime(task);
     }
 
     private String safe(String value) {

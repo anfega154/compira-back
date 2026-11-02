@@ -69,6 +69,7 @@ public class ResourceServerConfig {
                 .securityContextRepository(NoOpServerSecurityContextRepository.getInstance())
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers(HttpMethod.OPTIONS, DESCENDANTS).permitAll()
+                        .pathMatchers(HttpMethod.GET, "/api/v1/tasks/reports/executive").hasAnyAuthority(ADMINISTRATOR, COORDINATOR)
                         .pathMatchers(HttpMethod.GET, TeamHandler.BASE).hasAnyAuthority(ADMINISTRATOR, COORDINATOR)
                         .pathMatchers(HttpMethod.GET, TeamHandler.MEMBERS).hasAnyAuthority(ADMINISTRATOR, COORDINATOR)
                         .pathMatchers(HttpMethod.POST, TeamHandler.MEMBERS).hasAnyAuthority(ADMINISTRATOR, COORDINATOR)

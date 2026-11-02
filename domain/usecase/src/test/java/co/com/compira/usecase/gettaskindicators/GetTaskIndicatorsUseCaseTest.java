@@ -115,6 +115,6 @@ class GetTaskIndicatorsUseCaseTest {
                 TaskTestData.COLLABORATOR_ID,
                 TaskTestData.COORDINATOR_ID,
                 TaskTestData.now().minusDays(3),
-                closedAt);
+                closedAt, null, null, closedAt);
     }
 }

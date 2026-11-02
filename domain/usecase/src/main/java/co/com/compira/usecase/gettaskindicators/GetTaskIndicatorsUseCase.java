@@ -4,6 +4,7 @@ import co.com.compira.model.auth.RoleCode;
 import co.com.compira.model.common.error.CompiraException;
 import co.com.compira.model.common.error.ErrorCategory;
 import co.com.compira.model.task.Task;
+import co.com.compira.model.task.TaskReportingPolicy;
 import co.com.compira.model.task.TaskAuthorization;
 import co.com.compira.model.task.TaskErrorCode;
 import co.com.compira.model.task.TaskIndicators;
@@ -65,7 +66,7 @@ public class GetTaskIndicatorsUseCase {
     private Task withDerivedStatus(Task task) {
         if (task.isOverdue(taskClockGateway.now())) {
             return new Task(task.id(), task.title(), task.description(), task.dueDate(), TaskStatus.DELAYED,
-                    task.responsibleUserId(), task.createdByUserId(), task.createdAt(), task.updatedAt());
+                    task.responsibleUserId(), task.createdByUserId(), task.createdAt(), task.updatedAt(), task.teamId(), task.teamName(), task.closedAt());
         }
         return task;
     }
@@ -77,9 +78,10 @@ public class GetTaskIndicatorsUseCase {
         long dueSoonCount = tasks.stream().filter(task -> isDueSoon(task, now, dueSoonLimit)).count();
         long closedCount = tasks.stream().filter(task -> task.status() == TaskStatus.CLOSED).count();
         long closedOnTimeCount = tasks.stream().filter(this::isClosedOnTime).count();
-        Integer compliancePercentage = closedCount == 0
+        long evaluableClosedCount = tasks.stream().filter(TaskReportingPolicy::isEvaluable).count();
+        Integer compliancePercentage = evaluableClosedCount == 0
                 ? null
-                : Math.toIntExact(Math.round(closedOnTimeCount * 100.0 / closedCount));
+                : Math.toIntExact(Math.round(closedOnTimeCount * 100.0 / evaluableClosedCount));
         Map<UUID, Long> workloadByAssignee = tasks.stream()
                 .filter(task -> task.status().isActive() && task.responsibleUserId() != null)
                 .collect(Collectors.groupingBy(Task::responsibleUserId, Collectors.counting()));
@@ -92,7 +94,7 @@ public class GetTaskIndicatorsUseCase {
                 .map(directory -> new TaskIndicators(
                         tasks.size(), overdueCount, dueSoonCount, closedCount, closedOnTimeCount, compliancePercentage,
                         buildWorkload(workloadByAssignee, directory),
-                        buildAssignees(allResponsibleIds, directory)));
+                        buildAssignees(allResponsibleIds, directory), evaluableClosedCount));
     }
 
     private List<TaskIndicators.AssigneeWorkload> buildWorkload(Map<UUID, Long> workloadByAssignee, Map<UUID, TaskUser> directory) {
@@ -147,9 +149,6 @@ public class GetTaskIndicatorsUseCase {
     }
 
     private boolean isClosedOnTime(Task task) {
-        return task.status() == TaskStatus.CLOSED
-                && task.dueDate() != null
-                && task.updatedAt() != null
-                && !task.updatedAt().isAfter(task.dueDate());
+        return TaskReportingPolicy.isOnTime(task);
     }
 }

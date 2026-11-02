@@ -39,7 +39,8 @@ public class TaskRepositoryAdapter implements TaskRepositoryGateway {
             RETURNING *
             """;
     private static final String TASK_WITH_TEAM_SELECT = """
-            SELECT tasks.*, t.id AS team_id, t.name AS team_name
+            SELECT tasks.*, t.id AS team_id, t.name AS team_name,
+                   (SELECT MAX(h.created_at) FROM task_history h WHERE h.task_id = tasks.id AND h.event = 'CLOSED') AS closed_at
             FROM tasks
             LEFT JOIN task_teams tt ON tt.task_id = tasks.id
             LEFT JOIN teams t ON t.id = tt.team_id
