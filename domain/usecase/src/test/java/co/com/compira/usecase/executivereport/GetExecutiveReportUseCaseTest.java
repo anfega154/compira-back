@@ -37,6 +37,12 @@ class GetExecutiveReportUseCaseTest {
     }
     void rows(ReportTask... tasks) { when(gateway.find(any(),any(),anyString(),any(),anyInt())).thenReturn(Flux.fromArray(tasks)); }
     ExecutiveReport generate() { return usecase.execute("admin@example.test",all).block(); }
+    @Test void buildsSnapshotOutsideNonBlockingNetworkThreads() {
+        rows();
+        StepVerifier.create(usecase.execute("admin@example.test",all).subscribeOn(reactor.core.scheduler.Schedulers.parallel())
+                .doOnNext(report -> assertFalse(reactor.core.scheduler.Schedulers.isInNonBlockingThread())))
+                .assertNext(report -> assertNotNull(report.reportId())).verifyComplete();
+    }
     @Test void buildsReconciledSummaryIncludingUnassignedAndRealClosures() {
         rows(task(TaskStatus.CLOSED,now,now.minusHours(4),TaskTestData.COLLABORATOR_ID),
              task(TaskStatus.CLOSED,now.minusHours(10),now.minusHours(2),TaskTestData.COLLABORATOR_ID),

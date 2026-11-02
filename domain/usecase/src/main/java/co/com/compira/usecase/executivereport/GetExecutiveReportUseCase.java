@@ -11,6 +11,7 @@ import co.com.compira.model.report.gateways.ExecutiveReportGateway;
 import co.com.compira.model.task.*;
 import co.com.compira.model.task.gateways.*;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import java.time.*;
 import java.util.*;
 import java.util.function.Function;
@@ -36,6 +37,8 @@ public class GetExecutiveReportUseCase {
                 ZoneId.of(zone);
                 OffsetDateTime now=clock.now();
                 return reports.find(admin ? null : actor.id(),filter,zone,now,MAX_TASKS+1).take(MAX_TASKS+1L).collectList()
+                    // Entropía UUID y cálculo acotado del informe fuera del hilo de red.
+                    .publishOn(Schedulers.boundedElastic())
                     .map(rows -> {
                         if (rows.size()>MAX_TASKS) throw new CompiraException("REPORT_LIMIT_EXCEEDED",
                             "El informe supera 5000 tareas. Reduzca el periodo o seleccione equipo y responsable; no se exportaron datos parciales",ErrorCategory.BAD_REQUEST);

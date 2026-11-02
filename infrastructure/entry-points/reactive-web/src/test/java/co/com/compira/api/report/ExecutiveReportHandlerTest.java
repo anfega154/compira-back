@@ -21,7 +21,7 @@ class ExecutiveReportHandlerTest {
  @BeforeEach void setup() {
   client=WebTestClient.bindToRouterFunction(new ExecutiveReportRouter().executiveReportRoutes(new ExecutiveReportHandler(reports,new TaskErrorHandler())))
     .webFilter((exchange,chain)->chain.filter(exchange.mutate().principal(Mono.just((java.security.Principal)()->"local-actor@example.test")).build())).build();
-  when(reports.execute(anyString(),any())).thenAnswer(call->Mono.just(new ExecutiveReport(UUID.randomUUID(),"1.0",OffsetDateTime.parse("2026-11-01T12:00:00Z"),"America/Bogota","COORDINATED_TEAMS","Ana García",call.getArgument(1),null,null,List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of())));
+  when(reports.execute(anyString(),any())).thenAnswer(call->Mono.just(new ExecutiveReport(UUID.fromString("50000000-0000-0000-0000-000000000001"),"1.0",OffsetDateTime.parse("2026-11-01T12:00:00Z"),"America/Bogota","COORDINATED_TEAMS","Ana García",call.getArgument(1),null,null,List.of(),List.of(),List.of(),List.of(),List.of(),List.of(),List.of())));
  }
  @Test void acceptsDefaultsAndUsesPrincipalInsteadOfSpoofedIdentity() {
   client.get().uri("/api/v1/tasks/reports/executive").header("X-Actor-Email","fake-admin@example.test").exchange().expectStatus().isOk()

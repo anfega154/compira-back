@@ -35,7 +35,7 @@ Desconocidos/repetidos/formatos inválidos →400. Sin autenticación →401; ro
 Respuesta version1.0: metadatos; filtros aplicados; summary; quality; teams; assignees; distribution; monthlyCohorts; findings; recommendations; tasks. Contrato ejecutable documentado en OpenAPI por ExecutiveReportRouter y probado en ExecutiveReportHandlerTest. APIs anteriores mantienen campos y añaden denominadores evaluables.
 
 ## Implementación, privacidad y operación
-Consulta SQL de lectura única con parámetros enlazados, perfil/equipo actual y agregado de historial; filtros antes del límite. No requiere migraciones ni recursos AWS adicionales. Una generación manual consulta el servidor; exportar reutiliza exactamente el JSON del corte. No son consultas periódicas nuevas.
+Consulta SQL de lectura única con parámetros enlazados, perfil/equipo actual y agregado de historial; filtros antes del límite. No requiere migraciones ni recursos AWS adicionales. El armado acotado del snapshot y la generación UUID se ejecutan fuera del hilo de red para no bloquear solicitudes (regresión detectada por BlockHound en Linux). Una generación manual consulta el servidor; exportar reutiliza exactamente el JSON del corte. No son consultas periódicas nuevas.
 
 PDF generado localmente con jsPDF/AutoTable y fuentes NotoSans empacadas con licencia OFL. Carga diferida; no se envían datos a terceros ni se almacena el PDF en AWS. Archivo incluye datos personales de responsables: distribución y retención según política de la organización. No se incluyen tokens/credenciales. Exportar no regenera el corte. Error/cancelación no produce un archivo parcial.
 
