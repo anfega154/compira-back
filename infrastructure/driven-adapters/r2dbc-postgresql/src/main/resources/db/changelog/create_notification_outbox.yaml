@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-notification-outbox
+      author: compira
+      changes:
+        - sql:
+            sql: |
+              CREATE TABLE notification_outbox (
+                notification_id BIGINT PRIMARY KEY REFERENCES task_notifications(id) ON DELETE CASCADE,
+                recipient_id UUID NOT NULL REFERENCES users(id),
+                attempts INTEGER NOT NULL DEFAULT 0,
+                available_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                delivered_at TIMESTAMPTZ
+              );
+              CREATE INDEX notification_outbox_pending ON notification_outbox(available_at, notification_id) WHERE delivered_at IS NULL;

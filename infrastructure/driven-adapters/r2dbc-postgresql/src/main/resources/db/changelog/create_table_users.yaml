@@ -1,0 +1,93 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-table-users
+      author: compira
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  defaultValueComputed: uuid_generate_v4()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: cognito_sub
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: email
+                  type: CITEXT
+                  constraints:
+                    nullable: false
+                    unique: true
+              - column:
+                  name: first_name
+                  type: VARCHAR(100)
+              - column:
+                  name: last_name
+                  type: VARCHAR(100)
+              - column:
+                  name: phone_number
+                  type: VARCHAR(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: preferred_mfa_channel
+                  type: VARCHAR(20)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(30)
+                  defaultValue: PENDING_CONFIRMATION
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_login_at
+                  type: TIMESTAMPTZ
+        - createIndex:
+            tableName: users
+            indexName: idx_users_cognito_sub
+            columns:
+              - column:
+                  name: cognito_sub
+        - createIndex:
+            tableName: users
+            indexName: idx_users_email
+            columns:
+              - column:
+                  name: email
+        - sql:
+            dbms: postgresql
+            splitStatements: true
+            sql: |
+              ALTER TABLE users
+              ADD CONSTRAINT ck_users_status
+              CHECK (status IN ('PENDING_CONFIRMATION', 'ACTIVE', 'DISABLED'));
+
+              ALTER TABLE users
+              ADD CONSTRAINT ck_users_preferred_mfa_channel
+              CHECK (preferred_mfa_channel IN ('EMAIL', 'SMS'));
+
+              DROP TRIGGER IF EXISTS trg_users_set_updated_at ON users;
+              CREATE TRIGGER trg_users_set_updated_at
+              BEFORE UPDATE ON users
+              FOR EACH ROW
+              EXECUTE FUNCTION set_updated_at();

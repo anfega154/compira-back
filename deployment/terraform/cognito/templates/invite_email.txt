@@ -1,0 +1,17 @@
+Hola,
+
+Se ha creado una cuenta para ti en nuestra plataforma.
+
+Tus credenciales temporales de acceso son:
+
+**Usuario:** {username}
+**Contraseña temporal:** {####}
+
+Por seguridad, deberás iniciar sesión utilizando estas credenciales y establecer una nueva contraseña en tu primer acceso.
+
+La contraseña temporal es de un solo uso y deberá ser reemplazada antes de continuar utilizando la plataforma.
+
+Si no reconoces esta solicitud o consideras que recibiste este mensaje por error, comunícate con el administrador de la plataforma.
+
+Saludos,
+Equipo de soporte

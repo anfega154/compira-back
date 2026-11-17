@@ -3,6 +3,9 @@ package co.com.compira.r2dbc.config;
 import io.r2dbc.pool.ConnectionPool;
 import io.r2dbc.pool.ConnectionPoolConfiguration;
 import io.r2dbc.postgresql.PostgresqlConnectionConfiguration;
+import io.r2dbc.postgresql.client.SSLMode;
+
+import java.util.Locale;
 import io.r2dbc.postgresql.PostgresqlConnectionFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +19,10 @@ public class PostgreSQLConnectionPool {
     public static final int MAX_IDLE_TIME = 30;
     public static final int DEFAULT_PORT = 5432;
 
+    private String resolveSslMode(String sslMode) {
+        return (sslMode == null || sslMode.isBlank() ? "prefer" : sslMode).toUpperCase(Locale.ROOT);
+    }
+
 	@Bean
 	public ConnectionPool getConnectionConfig(PostgresqlConnectionProperties properties) {
 		PostgresqlConnectionConfiguration dbConfiguration = PostgresqlConnectionConfiguration.builder()
@@ -25,6 +32,7 @@ public class PostgreSQLConnectionPool {
                 .schema(properties.schema())
                 .username(properties.username())
                 .password(properties.password())
+                .sslMode(SSLMode.valueOf(resolveSslMode(properties.sslMode())))
                 .build();
 
         ConnectionPoolConfiguration poolConfiguration = ConnectionPoolConfiguration.builder()

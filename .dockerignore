@@ -1,0 +1,20 @@
+.git
+.github
+.gradle
+**/build
+context
+.terraform
+**/.terraform
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.env
+.env.*
+*.log
+.DS_Store
+
+# Infrastructure state and local account configuration are not build inputs.
+deployment/terraform
+.aws
+**/*.tfvars
+**/backend.hcl

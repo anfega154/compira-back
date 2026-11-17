@@ -16,20 +16,15 @@ plugins {
 }
 
 sonar {
-    def modules = subprojects.projectDir.collect { "${it.toString().replace(project.projectDir.toString() + "/", "")}" }
+    def mergedReportPath = rootProject.layout.buildDirectory.file('reports/jacocoMergedReport/jacocoMergedReport.xml').get().asFile
     properties {
-        property "sonar.sourceEncoding", "UTF-8"
-        property "sonar.modules", "${modules.join(',')}"
-        property "sonar.sources", "src,deployment,settings.gradle,main.gradle,build.gradle,${modules.collect { "${it}/build.gradle" }.join(',')}"
-        property "sonar.exclusions", "**/MainApplication.java,**/**.bin,**/deployment/**"
-        property "sonar.tests", "src/test"
-        property "sonar.java.binaries", "**/build/classes/java/main"
-        property "sonar.junit.reportsPath", "**/build/test-results/test"
-        property "sonar.java.coveragePlugin", "jacoco"
-        property "sonar.coverage.jacoco.xmlReportPaths", "build/reports/jacocoMergedReport/jacocoMergedReport.xml"
-        property "sonar.pitest.reportPaths", "build/reports/pitest/mutations.xml"
-        property "sonar.externalIssuesReportPaths", "build/issues.json"
+        property 'sonar.sourceEncoding', 'UTF-8'
+        property 'sonar.exclusions', '**/MainApplication.java, **/config/**'
+        property 'sonar.coverage.exclusions', '**/MainApplication.java, **/config/**, **/model/**, **/dto/**'
+        property 'sonar.coverage.jacoco.xmlReportPaths', mergedReportPath
     }
 }
 
 apply from: './main.gradle'
+
+tasks.sonar.dependsOn jacocoMergedReport

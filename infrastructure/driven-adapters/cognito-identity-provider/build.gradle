@@ -1,0 +1,8 @@
+dependencies {
+    implementation project(':model')
+    implementation 'org.springframework:spring-context'
+    implementation 'org.springframework.boot:spring-boot'
+    implementation platform('software.amazon.awssdk:bom:2.31.74')
+    implementation 'software.amazon.awssdk:cognitoidentityprovider'
+    implementation 'software.amazon.awssdk:sts'
+}

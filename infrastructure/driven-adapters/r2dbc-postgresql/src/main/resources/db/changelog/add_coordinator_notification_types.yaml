@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: add-coordinator-notification-types
+      author: compira
+      changes:
+        - sql:
+            sql: |
+              ALTER TABLE task_notifications DROP CONSTRAINT task_notifications_type_check;
+              ALTER TABLE task_notifications ADD CONSTRAINT task_notifications_type_check
+                CHECK (type IN ('ASSIGNED', 'REASSIGNED', 'DUE_SOON', 'OVERDUE', 'TASK_COMPLETED', 'OBSERVATION_ADDED'));

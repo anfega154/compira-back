@@ -7,21 +7,36 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
 import java.util.List;
 
 @Configuration
 public class CorsConfig {
 
     @Bean
-    CorsWebFilter corsWebFilter(@Value("${cors.allowed-origins}") List<String> origins) {
+    @org.springframework.core.annotation.Order(org.springframework.core.Ordered.HIGHEST_PRECEDENCE)
+    CorsWebFilter corsWebFilter(
+            @Value("${cors.allowed-origins}") List<String> origins
+    ) {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowCredentials(true);
-        config.setAllowedOrigins(origins);
-        config.setAllowedMethods(Arrays.asList("POST", "GET")); // TODO: Check others required methods
-        config.setAllowedHeaders(List.of(CorsConfiguration.ALL));
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        config.setAllowCredentials(true);
+
+        config.setAllowedOriginPatterns(origins);
+
+        config.setAllowedMethods(List.of(
+                "GET",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE",
+                "OPTIONS"
+        ));
+
+        config.setAllowedHeaders(List.of("*"));
+
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
+
         source.registerCorsConfiguration("/**", config);
 
         return new CorsWebFilter(source);

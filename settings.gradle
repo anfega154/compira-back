@@ -1,6 +1,5 @@
 pluginManagement {
     repositories {
-        //mavenLocal()
         gradlePluginPortal()
     }
 }
@@ -14,6 +13,8 @@ buildCache {
 rootProject.name = 'compira-back'
 
 include ':app-service'
+include ':aws-realtime'
+project(':aws-realtime').projectDir = file('./infrastructure/driven-adapters/aws-realtime')
 include ':model'
 include ':usecase'
 project(':app-service').projectDir = file('./applications/app-service')
@@ -23,3 +24,5 @@ include ':reactive-web'
 project(':reactive-web').projectDir = file('./infrastructure/entry-points/reactive-web')
 include ':r2dbc-postgresql'
 project(':r2dbc-postgresql').projectDir = file('./infrastructure/driven-adapters/r2dbc-postgresql')
+include ':cognito-identity-provider'
+project(':cognito-identity-provider').projectDir = file('./infrastructure/driven-adapters/cognito-identity-provider')

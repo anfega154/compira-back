@@ -1,0 +1,56 @@
+databaseChangeLog:
+  - changeSet:
+      id: create-table-task-history
+      author: compira
+      changes:
+        - createTable:
+            tableName: task_history
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  defaultValueComputed: uuid_generate_v4()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: task_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: event
+                  type: VARCHAR(30)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: actor_user_id
+                  type: UUID
+              - column:
+                  name: previous_value
+                  type: VARCHAR(255)
+              - column:
+                  name: new_value
+                  type: VARCHAR(255)
+              - column:
+                  name: detail
+                  type: VARCHAR(2000)
+              - column:
+                  name: created_at
+                  type: TIMESTAMPTZ
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableName: task_history
+            baseColumnNames: task_id
+            constraintName: fk_task_history_task
+            referencedTableName: tasks
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            tableName: task_history
+            indexName: idx_task_history_task
+            columns:
+              - column:
+                  name: task_id

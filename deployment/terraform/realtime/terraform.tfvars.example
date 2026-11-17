@@ -1,0 +1,5 @@
+aws_region = "us-east-1"
+project = "compira"
+environment = "qa"
+backend_task_role_name = "<rol-task-ECS-existente>"
+allowed_origins = ["https://<frontend-cloudfront>"]

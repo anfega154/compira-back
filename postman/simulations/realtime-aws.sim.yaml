@@ -1,0 +1,6 @@
+simulation: compira-realtime-aws
+routing: path
+mocks:
+  - name: realtime-aws
+    routeKey: aws
+    path: ../mocks/realtime-aws/config.yaml

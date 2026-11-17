@@ -1,55 +1,41 @@
 # Compira Back
 
-Proyecto base backend con:
+Backend base de COMPIRA construido con:
 
 - Java 21
-- Spring Boot + WebFlux
-- Scaffold Clean Architecture de Bancolombia
-- Driven adapter reactivo para PostgreSQL con R2DBC
-- API versionada en `/api/v1` y `/api/v2`
+- Spring Boot WebFlux
+- Bancolombia Scaffold + Clean Architecture
+- PostgreSQL reactivo con R2DBC
+- Amazon Cognito para registro, login, MFA y recuperación de contraseña
+- Terraform para aprovisionar Cognito
 
-## Estructura
+## Módulos principales
 
-- `domain/model` → modelo de dominio y puertos
-- `domain/usecase` → casos de uso
-- `infrastructure/entry-points/reactive-web` → endpoints WebFlux
-- `infrastructure/driven-adapters/r2dbc-postgresql` → adapter reactivo para Postgres
-- `applications/app-service` → ensamblado e inicio de la app
+- `domain/model` → entidades, comandos, respuestas y gateways
+- `domain/usecase` → casos de uso de autenticación y compañías
+- `infrastructure/entry-points/reactive-web` → endpoints WebFlux y OpenAPI
+- `infrastructure/driven-adapters/r2dbc-postgresql` → persistencia local de usuarios, roles y compañías
+- `infrastructure/driven-adapters/cognito-identity-provider` → integración reactiva con Cognito usando AWS SDK async
+- `deployment/terraform/cognito` → infraestructura Cognito con Terraform
 
-## Endpoints base
+## Endpoints de autenticación
 
-- `GET /api/v1/companies`
-- `GET /api/v1/companies/{id}`
-- `POST /api/v1/companies`
+Todos existen en `/api/v1` y `/api/v2`.
 
-Los mismos endpoints también existen en `/api/v2`.
+- `POST /auth/register`
+- `POST /auth/register/confirm`
+- `POST /auth/login`
+- `POST /auth/login/challenge`
+- `POST /auth/password-recovery`
+- `POST /auth/password-recovery/confirm`
 
-### Ejemplo de creación
+## Variables requeridas para Cognito
 
-```bash
-curl --request POST 'http://localhost:8080/api/v1/companies' \
-  --header 'Content-Type: application/json' \
-  --data '{
-    "name": "Compira SAS",
-    "email": "contacto@compira.co"
-  }'
-```
+- `COGNITO_REGION`
+- `COGNITO_USER_POOL_ID`
+- `COGNITO_CLIENT_ID`
 
-## Levantar PostgreSQL local
-
-Desde `/Users/andresganan/Desktop/COMPIRA/compira-back`:
-
-```bash
-docker compose -f deployment/docker-compose.yml up -d
-```
-
-La tabla `companies` se crea automáticamente con el script:
-
-- `/Users/andresganan/Desktop/COMPIRA/compira-back/deployment/postgres/init/01-create-companies.sql`
-
-## Variables de conexión
-
-La aplicación usa estas variables, con defaults locales:
+## Variables locales de base de datos
 
 - `DB_HOST=localhost`
 - `DB_PORT=5432`
@@ -58,20 +44,87 @@ La aplicación usa estas variables, con defaults locales:
 - `DB_USER=postgres`
 - `DB_PASSWORD=postgres`
 
-## Ejecutar
+## Base de datos local
+
+Levantar PostgreSQL:
+
+```bash
+docker compose -f deployment/docker-compose.yml up -d
+```
+
+El esquema se inicializa con Liquibase desde
+`infrastructure/driven-adapters/r2dbc-postgresql/src/main/resources/db/db.changelog-master.yaml`
+cuando `LIQUIBASE_ENABLED=true`.
+
+## Terraform Cognito
+
+Ubicación:
+
+- `/Users/andresganan/Desktop/COMPIRA/compira-back/deployment/terraform/cognito`
+
+Comandos base:
+
+```bash
+cd deployment/terraform/cognito
+cp terraform.tfvars.example terraform.tfvars
+terraform init
+terraform plan
+terraform apply
+```
+
+## Ejecutar backend
 
 ```bash
 ./gradlew bootRun
 ```
 
-## Validación
+## Validar
 
 ```bash
 ./gradlew test
 ```
 
-## Repositorio remoto
 
-Este proyecto quedó conectado a:
+## Avisos al coordinador y trazabilidad
 
-- [anfega154/compira-back](https://github.com/anfega154/compira-back)
+- El coordinador vigente del equipo recibe `DUE_SOON` cuando una tarea activa está
+  dentro de las 24 horas previas a su vencimiento (incluida la frontera exacta).
+  Se conserva el aviso al responsable; una tarea sin responsable también avisa al
+  coordinador. Al llegar al vencimiento se conserva `OVERDUE`.
+- Una transición válida del responsable a `COMPLETED` genera `TASK_COMPLETED`.
+  Una observación autorizada genera `OBSERVATION_ADDED`, incluso si la escribe el
+  propio coordinador. Cada aviso de actividad usa el ID del evento de historial;
+  repetir la consulta no repite avisos y observaciones distintas no se confunden.
+- Los destinatarios son los del equipo actual, no el creador de la tarea.
+  Persisten las exclusiones de tareas terminadas/canceladas, el interruptor
+  global, los controles de acceso y la persistencia para usuarios desconectados.
+- Estado/observación, historial y aviso se confirman o revierten juntos. No se
+  agregan correos ni nuevas conexiones persistentes: el frontend consulta cada 30s.
+- Las respuestas de observaciones incluyen `authorName` y `authorEmail`; las de
+  historial incluyen `actorName` y `actorEmail`. Los IDs originales permanecen.
+  Se resuelve el perfil actual mediante una unión SQL, también para registros
+  anteriores y usuarios deshabilitados; no es una fotografía del nombre en el
+  momento histórico. Actor nulo significa acción automática del sistema.
+- El listado administrativo de usuarios muestra tanto equipos coordinados como
+  equipos de los que el usuario es miembro, sin duplicar equipos ni usuarios.
+  `teamName` contiene nombres ordenados; `teamId` conserva un equipo representativo
+  para compatibilidad, no debe interpretarse como la lista completa.
+
+### Publicación compatible
+
+La migración incremental `add_coordinator_notification_types.yaml` amplía la
+restricción de tipos; no modifica cambios Liquibase anteriores ni elimina datos.
+Publicar **primero frontend** (acepta los nuevos tipos y campos) y esperar su CD
+verde; luego publicar backend (aplica la migración y genera avisos). Recargar las
+pestañas antiguas para tomar el cliente nuevo. Volver al cliente anterior mientras
+existan tipos nuevos no es compatible con su validación estricta.
+
+## Canal WebSocket administrado
+
+Ver [operación, contrato y retorno seguro](docs/notificaciones_tiempo_real_qa.md).
+El transporte conserva los avisos PostgreSQL, añade outbox y un módulo Terraform
+`realtime` aislado. Activación explícita y consulta30s sólo como respaldo.
+
+## Reportes gerenciales y exportación PDF
+
+Ver [manual funcional, contrato, fórmulas y operación](docs/reportes-gerenciales.md).
